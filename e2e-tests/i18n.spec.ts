@@ -49,16 +49,16 @@ test.describe('Internationalization (i18n) Tests', () => {
     // Expected texts in each language (based on i18n.ts file)
     const expectedTexts = {
       en: {
-        title: 'Svelte Template with Theme',
-        subtitle: 'A basic Svelte application template with light/dark theme support.'
+        title: 'Bitcoin Price Tracker',
+        subtitle: 'Real-time Bitcoin price monitoring dashboard.'
       },
       pt: {
-        title: 'Template Svelte com Tema',
-        subtitle: 'Um modelo básico de aplicação Svelte com suporte a tema claro/escuro.'
+        title: 'Rastreador de Preço do Bitcoin',
+        subtitle: 'Painel de monitoramento de preço do Bitcoin em tempo real.'
       },
       es: {
-        title: 'Plantilla Svelte con Tema',
-        subtitle: 'Un modelo básico de aplicación Svelte con soporte para tema claro/oscuro.'
+        title: 'Rastreador de Precio de Bitcoin',
+        subtitle: 'Panel de monitoreo del precio de Bitcoin en tiempo real.'
       }
     };
     

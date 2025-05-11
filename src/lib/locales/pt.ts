@@ -1,6 +1,11 @@
 export default {
-  "app.title": "bitcointracker",
-  "app.subtitle": "Monitoramento em tempo real do valor do Bitcoin",
+  // Common
+  "greeting": "Olá",
+  "welcome": "Bem-vindo ao aplicativo",
+  "language": "Idioma",
+    // App info
+  "app.title": "Rastreador de Preço do Bitcoin",
+  "app.subtitle": "Painel de monitoramento de preço do Bitcoin em tempo real.",
   "features.title": "Recursos Incluídos",
   "features.theme": "Alternância de tema claro/escuro",
   "features.accessibility": "Acessibilidade básica",

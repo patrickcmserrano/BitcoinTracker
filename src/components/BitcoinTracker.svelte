@@ -80,10 +80,11 @@ onDestroy(() => {
 </script>
 
 <div 
-  class="card p-4 shadow-lg variant-filled-surface"
+  class="card p-4 shadow-lg variant-filled-surface max-w-2xl mx-auto"
 >
-  <div class="flex justify-between items-center mb-3">
+  <div class="text-center mb-3">
     <h1 class="h3 font-bold text-primary-500">{$_('app.title')}</h1>
+    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{$_('app.subtitle')}</p>
   </div>
     {#if loading}
     <div class="flex justify-center items-center py-8">
