@@ -2,55 +2,17 @@
 import { addMessages, init, locale, _ } from 'svelte-i18n';
 import { writable } from 'svelte/store';
 
+// Import locale files
+import en from './locales/en';
+import pt from './locales/pt';
+import es from './locales/es';
+
 // Language definitions
 export const SUPPORTED_LANGUAGES = ['en', 'pt', 'es'] as const;
 export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 
-// Basic translations (used mainly for testing)
-export const translations = {
-  en: {
-    greeting: 'Hello',
-    welcome: 'Welcome to the application',
-    language: 'Language',
-    'app.title': 'Svelte Template with Theme',
-    'app.subtitle': 'A basic Svelte application template with light/dark theme support.',
-    'features.title': 'Included Features',
-    'features.theme': 'Light/dark theme toggle',
-    'features.accessibility': 'Basic accessibility',
-    'features.typescript': 'TypeScript support',
-    'features.testing': 'Unit and e2e tests',
-    'features.i18n': 'Internationalization support',
-    'footer.copyright': '© 2025 Svelte Template. Built with Svelte.'
-  },
-  pt: {
-    greeting: 'Olá',
-    welcome: 'Bem-vindo ao aplicativo',
-    language: 'Idioma',
-    'app.title': 'Template Svelte com Tema',
-    'app.subtitle': 'Um modelo básico de aplicação Svelte com suporte a tema claro/escuro.',
-    'features.title': 'Recursos Incluídos',
-    'features.theme': 'Alternância de tema claro/escuro',
-    'features.accessibility': 'Acessibilidade básica',
-    'features.typescript': 'Suporte ao TypeScript',
-    'features.testing': 'Testes unitários e e2e',
-    'features.i18n': 'Suporte à internacionalização',
-    'footer.copyright': '© 2025 Template Svelte. Construído com Svelte.'
-  },
-  es: {
-    greeting: 'Hola',
-    welcome: 'Bienvenido a la aplicación',
-    language: 'Idioma',
-    'app.title': 'Plantilla Svelte con Tema',
-    'app.subtitle': 'Un modelo básico de aplicación Svelte con soporte para tema claro/oscuro.',
-    'features.title': 'Características Incluidas',
-    'features.theme': 'Alternancia de tema claro/oscuro',
-    'features.accessibility': 'Accesibilidad básica',
-    'features.typescript': 'Soporte para TypeScript',
-    'features.testing': 'Pruebas unitarias y e2e',
-    'features.i18n': 'Soporte para internacionalización',
-    'footer.copyright': '© 2025 Plantilla Svelte. Construido con Svelte.'
-  }
-};
+// Basic translations for testing and reference
+export const translations = { en, pt, es };
 
 // Add messages to the dictionary
 addMessages('en', translations.en);

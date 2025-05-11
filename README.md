@@ -1,53 +1,27 @@
-# svelte-ts-skeleton-starter
+# bitcointracker
 
-A modern template for Svelte projects using TypeScript and Vite as a bundler. This repository serves as a starting point for new Svelte projects with an optimized, ready-to-use configuration.
+Uma aplicação moderna para monitoramento em tempo real do valor do Bitcoin, construída com Svelte, TypeScript e Skeleton UI.
 
-## Overview
+## Visão Geral
 
-This template includes:
-- Svelte 5 with TypeScript support
-- Vite for fast development and optimized build
-- Skeleton UI integration
-- Light/dark theme configuration
-- Organized project structure
-- Internationalization (i18n) support
-- Comprehensive unit and E2E tests
-- CI/CD with GitHub Actions for GitHub Pages deployment
+Este projeto inclui:
+- Monitoramento em tempo real do preço do Bitcoin
+- Visualização de dados como variação percentual, volume e amplitude
+- Interface construída com Svelte 5 e TypeScript
+- Tema Skeleton UI "vintage" para uma estética diferenciada
+- Suporte a temas claro/escuro
+- Internacionalização (i18n) com suporte a português, inglês e espanhol
+- Testes unitários e E2E abrangentes
 
-## Creating Projects from this Template
+## Funcionalidades
 
-1. **Using GitHub**
-   ```bash
-   # Clone this template
-   gh repo create my-project --template svelte-ts-skeleton-starter
-   # or use GitHub's interface to create a new repository from this template
-   ```
-
-2. **Manually**
-   ```bash
-   # Clone the repository
-   git clone https://github.com/your-username/svelte-ts-skeleton-starter.git my-project
-   
-   # Remove Git history
-   cd my-project
-   rm -rf .git
-   
-   # Initialize a new Git repository
-   git init
-   ```
-
-## Project Creation
-
-1. **Project Initialization**
-   ```bash
-   npm create vite@latest svelte-ts-skeleton-starter -- --template svelte-ts
-   cd svelte-ts-skeleton-starter
-   npm install
-   ```
-
-2. **Project Structure**
-   ```
-   📦 svelte-ts-skeleton-starter
+- Exibição em tempo real do preço do Bitcoin em USD
+- Visualização da variação percentual nas últimas 24h
+- Monitoramento do volume de negociação (24h e estimativa por hora)
+- Indicador visual da amplitude de preço nos últimos 10 minutos
+- Atualização automática dos dados a cada 60 segundos
+- Alternância entre temas claro/escuro
+- Suporte a múltiplos idiomas
    ├── 📂 public/
    │   └── vite.svg
    ├── 📂 src/
