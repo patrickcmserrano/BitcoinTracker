@@ -7,5 +7,5 @@ export default defineConfig({  plugins: [
     tailwindcss(),
     svelte(),
   ],
-  base: '/bitcointracker/', // Caminho base específico para o GitHub Pages
+  base: '/BitcoinTracker/', // Caminho base específico para o GitHub Pages
 });
