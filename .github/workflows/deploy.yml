@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages (CD)
+
+on:
+  # Only manually or workflow_dispatch
+  workflow_dispatch:
+    inputs:
+      deploy_coverage:
+        description: 'Publish coverage report'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  deploy-app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install and Build
+        run: |
+          npm ci
+          npm run build
+      
+      - name: Create .nojekyll
+        run: touch dist/.nojekyll
+      
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist
+          branch: gh-pages
+          clean-exclude: coverage/**
+          commit-message: "Deploy application [skip ci]"
+  
+  deploy-coverage:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.deploy_coverage == 'true' }}
+    needs: deploy-app
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install Dependencies
+        run: npm ci
+      
+      - name: Run Unit Tests with Coverage
+        run: npm run test:coverage
+      
+      - name: Deploy Coverage Report
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: coverage/
+          branch: gh-pages
+          target-folder: coverage
+          clean: false
+          commit-message: "Deploy coverage report [skip ci]"
