@@ -114,9 +114,9 @@ describe('i18n Setup', () => {
 
   it('should have consistent translation keys across all languages', () => {
     const i18n = i18nModule.createI18nStore();
-    const enKeys = Object.keys(i18n.translations.en);
-    const ptKeys = Object.keys(i18n.translations.pt);
-    const esKeys = Object.keys(i18n.translations.es);
+    const enKeys = getAllKeys(i18n.translations.en);
+    const ptKeys = getAllKeys(i18n.translations.pt);
+    const esKeys = getAllKeys(i18n.translations.es);
     
     // Check if all English keys exist in other languages
     enKeys.forEach(key => {
@@ -127,6 +127,46 @@ describe('i18n Setup', () => {
     // Check that there are no extra keys in pt or es
     expect(ptKeys.length).toBe(enKeys.length);
     expect(esKeys.length).toBe(enKeys.length);
+  });
+
+  // Helper function to get all keys including nested ones
+  function getAllKeys(obj: any, prefix = ''): string[] {
+    return Object.keys(obj).reduce((keys: string[], key: string) => {
+      const value = obj[key];
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (typeof value === 'object' && value !== null) {
+        return [...keys, ...getAllKeys(value, newKey)];
+      }
+      
+      return [...keys, newKey];
+    }, []);
+  }
+
+  // Verifica se as mensagens específicas do timeframe de amplitude existem
+  it('should contain all timeframe amplitude messages', () => {
+    const i18n = i18nModule.createI18nStore();
+    
+    // Verifica para inglês
+    expect(i18n.t('bitcoin.timeframe10mInfo', 'en')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1hInfo', 'en')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe4hInfo', 'en')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1dInfo', 'en')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1wInfo', 'en')).toBeTruthy();
+    
+    // Verifica para português
+    expect(i18n.t('bitcoin.timeframe10mInfo', 'pt')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1hInfo', 'pt')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe4hInfo', 'pt')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1dInfo', 'pt')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1wInfo', 'pt')).toBeTruthy();
+    
+    // Verifica para espanhol
+    expect(i18n.t('bitcoin.timeframe10mInfo', 'es')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1hInfo', 'es')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe4hInfo', 'es')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1dInfo', 'es')).toBeTruthy();
+    expect(i18n.t('bitcoin.timeframe1wInfo', 'es')).toBeTruthy();
   });
 
   it('should initialize i18n correctly through the setupI18n function', () => {

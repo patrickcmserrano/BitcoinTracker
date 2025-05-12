@@ -14,7 +14,8 @@ export default {
   "features.i18n": "Suporte à internacionalização",
   "footer.copyright": "© 2025 bitcointracker. Construído com Svelte.",
   
-  // BitcoinTracker  "bitcoin.loading": "Carregando...",
+  // BitcoinTracker  
+  "bitcoin.loading": "Carregando...",
   "bitcoin.error": "Erro ao obter dados. Tente novamente mais tarde.",
   "bitcoin.variation": "Variação",
   "bitcoin.volume": "Volume",
@@ -30,7 +31,8 @@ export default {
   "bitcoin.lowPrice": "Mínima:",
   "bitcoin.updated": "Atualizado:",
   
-  // Informações específicas de timeframes  "bitcoin.timeframe10mInfo": "Dados dos últimos 10 minutos. Útil para operações rápidas.",
+  // Informações específicas de timeframes  
+  "bitcoin.timeframe10mInfo": "Dados dos últimos 10 minutos. Útil para operações rápidas.",
   "bitcoin.timeframe1hInfo": "Variação da última hora. Ideal para tendências de curto prazo.",
   "bitcoin.timeframe4hInfo": "Amplitude nas últimas 4 horas. Bom para análise intradiária.",
   "bitcoin.timeframe1dInfo": "Movimento diário completo com volume total de 24h.",

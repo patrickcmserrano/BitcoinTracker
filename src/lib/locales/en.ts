@@ -14,7 +14,8 @@ export default {
   "features.i18n": "Internationalization support",
   "footer.copyright": "© 2025 bitcointracker. Built with Svelte.",
   
-  // BitcoinTracker  "bitcoin.loading": "Loading...",
+  // BitcoinTracker
+  "bitcoin.loading": "Loading...",
   "bitcoin.error": "Error loading data. Please try again later.",
   "bitcoin.variation": "Change",
   "bitcoin.volume": "Volume",

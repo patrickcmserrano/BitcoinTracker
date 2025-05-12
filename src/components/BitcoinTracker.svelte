@@ -84,6 +84,30 @@ function getTimeframeData(timeframe: string) {
 // Constante para o intervalo de atualização (em ms)
 const UPDATE_INTERVAL = 15000; // 15 segundos para teste, deve ser 60000 (60s) em produção
 
+// Valores de amplitude para cada timeframe
+const AMPLITUDE_THRESHOLDS = {
+  '10m': {
+    MEDIUM: 150,
+    HIGH: 300
+  },
+  '1h': {
+    MEDIUM: 450,
+    HIGH: 900
+  },
+  '4h': {
+    MEDIUM: 900,
+    HIGH: 1800
+  },
+  '1d': {
+    MEDIUM: 1350,
+    HIGH: 2700
+  },
+  '1w': {
+    MEDIUM: 2500,
+    HIGH: 5000
+  }
+};
+
 // Função para atualizar o contador regressivo
 function updateTimeLeft() {
   if (!nextUpdateTime) {
@@ -122,9 +146,26 @@ function updateTimeLeft() {
   }
 }
 
-// Constantes para verificação de amplitude
-const AMPLITUDE_MEDIUM = 150;
-const AMPLITUDE_HIGH = 300;
+// Função para determinar a cor do indicador de amplitude
+function getAmplitudeColor(amplitude: number, timeframe: string): string {
+  const thresholds = AMPLITUDE_THRESHOLDS[timeframe as keyof typeof AMPLITUDE_THRESHOLDS];
+  
+  if (amplitude > thresholds.HIGH) {
+    return 'bg-error-500';
+  } else if (amplitude > thresholds.MEDIUM) {
+    return 'bg-warning-500';
+  } else {
+    return 'bg-success-500';
+  }
+}
+
+// Função para calcular a porcentagem da barra de progresso
+function getAmplitudePercentage(amplitude: number, timeframe: string): number {
+  // Usa o valor HIGH do timeframe específico como referência para 100%
+  const maxValue = AMPLITUDE_THRESHOLDS[timeframe as keyof typeof AMPLITUDE_THRESHOLDS].HIGH * 1.66;
+  const percentage = (amplitude / maxValue) * 100;
+  return Math.min(percentage, 100); // Limitando a 100%
+}
 
 // Função para formatar números com separador de milhares
 function formatNumber(value: number, decimals = 2): string {
@@ -140,24 +181,6 @@ function formatNumber(value: number, decimals = 2): string {
 // Função para determinar a cor da variação percentual
 function getPercentChangeColor(percentChange: number): string {
   return percentChange >= 0 ? 'text-success-500' : 'text-error-500';
-}
-
-// Função para determinar a cor do indicador de amplitude
-function getAmplitudeColor(amplitude: number): string {
-  if (amplitude > AMPLITUDE_HIGH) {
-    return 'bg-error-500';
-  } else if (amplitude > AMPLITUDE_MEDIUM) {
-    return 'bg-warning-500';
-  } else {
-    return 'bg-success-500';
-  }
-}
-
-// Função para calcular a porcentagem da barra de progresso
-function getAmplitudePercentage(amplitude: number): number {
-  // Ajuste para que a barra comece a ficar completa em 500 pontos
-  const percentage = (amplitude / 500) * 100;
-  return Math.min(percentage, 100); // Limitando a 100%
 }
 
 // Função para obter dados atualizados
@@ -360,8 +383,8 @@ onDestroy(() => {
         </div>
         <div class="progress">
           <div 
-            class={`progress-bar ${getAmplitudeColor(timeframeData.amplitude)}`} 
-            style={`width: ${getAmplitudePercentage(timeframeData.amplitude)}%`}
+            class={`progress-bar ${getAmplitudeColor(timeframeData.amplitude, activeTimeframe)}`} 
+            style={`width: ${getAmplitudePercentage(timeframeData.amplitude, activeTimeframe)}%`}
           ></div>
         </div>
       </div>
