@@ -123,13 +123,69 @@ onDestroy(() => {
     <!-- Amplitude 10 minutos -->
     <div class="mb-3">
       <div class="flex justify-between items-center mb-1">
-        <span>{$_('bitcoin.amplitude')}</span>
+        <span>{$_('bitcoin.amplitude10m')}</span>
         <span>${formatNumber(data.amplitude10m)}</span>
       </div>
       <div class="progress">
         <div 
           class={`progress-bar ${getAmplitudeColor(data.amplitude10m)}`} 
           style={`width: ${getAmplitudePercentage(data.amplitude10m)}%`}
+        ></div>
+      </div>
+    </div>
+    
+    <!-- Amplitude 60 minutos -->
+    <div class="mb-3">
+      <div class="flex justify-between items-center mb-1">
+        <span>{$_('bitcoin.amplitude1h')}</span>
+        <span>${formatNumber(data.amplitude1h)}</span>
+      </div>
+      <div class="progress">
+        <div 
+          class={`progress-bar ${getAmplitudeColor(data.amplitude1h)}`} 
+          style={`width: ${getAmplitudePercentage(data.amplitude1h)}%`}
+        ></div>
+      </div>
+    </div>
+    
+    <!-- Amplitude 240 minutos (4 horas) -->
+    <div class="mb-3">
+      <div class="flex justify-between items-center mb-1">
+        <span>{$_('bitcoin.amplitude4h')}</span>
+        <span>${formatNumber(data.amplitude4h)}</span>
+      </div>
+      <div class="progress">
+        <div 
+          class={`progress-bar ${getAmplitudeColor(data.amplitude4h)}`} 
+          style={`width: ${getAmplitudePercentage(data.amplitude4h)}%`}
+        ></div>
+      </div>
+    </div>
+    
+    <!-- Amplitude 1 dia -->
+    <div class="mb-3">
+      <div class="flex justify-between items-center mb-1">
+        <span>{$_('bitcoin.amplitude1d')}</span>
+        <span>${formatNumber(data.amplitude1d)}</span>
+      </div>
+      <div class="progress">
+        <div 
+          class={`progress-bar ${getAmplitudeColor(data.amplitude1d)}`} 
+          style={`width: ${getAmplitudePercentage(data.amplitude1d)}%`}
+        ></div>
+      </div>
+    </div>
+    
+    <!-- Amplitude semanal -->
+    <div class="mb-3">
+      <div class="flex justify-between items-center mb-1">
+        <span>{$_('bitcoin.amplitude1w')}</span>
+        <span>${formatNumber(data.amplitude1w)}</span>
+      </div>
+      <div class="progress">
+        <div 
+          class={`progress-bar ${getAmplitudeColor(data.amplitude1w)}`} 
+          style={`width: ${getAmplitudePercentage(data.amplitude1w)}%`}
         ></div>
       </div>
     </div>

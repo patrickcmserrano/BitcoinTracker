@@ -21,5 +21,10 @@ export default {
   "bitcoin.volume24h": "Volumen 24h:",
   "bitcoin.volumeHourly": "Volumen 1h (est.):",
   "bitcoin.amplitude": "Amplitud (10m):",
+  "bitcoin.amplitude10m": "Amplitud (10m):",
+  "bitcoin.amplitude1h": "Amplitud (1h):",
+  "bitcoin.amplitude4h": "Amplitud (4h):",
+  "bitcoin.amplitude1d": "Amplitud (1d):",
+  "bitcoin.amplitude1w": "Amplitud (semanal):",
   "bitcoin.updated": "Actualizado:"
 };

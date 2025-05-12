@@ -20,6 +20,10 @@ export default {
   "bitcoin.variation": "24h Change:",
   "bitcoin.volume24h": "24h Volume:",
   "bitcoin.volumeHourly": "1h Volume (est.):",
-  "bitcoin.amplitude": "Amplitude (10m):",
+  "bitcoin.amplitude10m": "Amplitude (10m):",
+  "bitcoin.amplitude1h": "Amplitude (1h):",
+  "bitcoin.amplitude4h": "Amplitude (4h):",
+  "bitcoin.amplitude1d": "Amplitude (1d):",
+  "bitcoin.amplitude1w": "Amplitude (weekly):",
   "bitcoin.updated": "Updated:"
 };
