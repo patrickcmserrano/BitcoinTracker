@@ -7,9 +7,56 @@ import { _ } from '../lib/i18n';
 
 // Estados para armazenar os dados
 let data: BitcoinData | null = null;
-let loading = true;
+let loading = true; // Apenas para o carregamento inicial
+let updating = false; // Estado para indicar atualização em andamento
 let error = false;
 let interval: ReturnType<typeof setInterval> | null = null;
+let nextUpdateTime: Date | null = null;
+let lastUpdated: Date | null = null;
+let timeLeftStr = '';
+let updateTimer: ReturnType<typeof setInterval> | null = null;
+let lastData: BitcoinData | null = null; // Para persistência do último estado válido
+
+// Constante para o intervalo de atualização (em ms)
+const UPDATE_INTERVAL = 15000; // 15 segundos para teste, deve ser 60000 (60s) em produção
+
+// Função para atualizar o contador regressivo
+function updateTimeLeft() {
+  if (!nextUpdateTime) {
+    timeLeftStr = 'aguardando...';
+    return;
+  }
+  
+  const now = new Date();
+  const diff = nextUpdateTime.getTime() - now.getTime();
+  
+  if (diff <= 0) {
+    timeLeftStr = 'em breve...';
+    
+    // Verificar se o intervalo ainda está funcionando se o tempo já passou
+    if (!updating && diff < -5000) { // Se 5 segundos se passaram após o tempo previsto
+      console.log('Verificando intervalo de atualização...');
+      
+      // Se não estiver atualizando e o tempo já passou, talvez o intervalo parou
+      if (interval) {
+        console.log('Forçando uma nova atualização...');
+        fetchData(false);
+      } else {
+        console.log('Intervalo perdido, recriando...');
+        interval = setInterval(async () => {
+          console.log('Executando atualização automática (recriada):', new Date().toLocaleTimeString());
+          await fetchData(false);
+        }, UPDATE_INTERVAL);
+        
+        // Forçar uma atualização imediata
+        fetchData(false);
+      }
+    }
+  } else {
+    const seconds = Math.floor(diff / 1000);
+    timeLeftStr = `em ${seconds}s`;
+  }
+}
 
 // Constantes para verificação de amplitude
 const AMPLITUDE_MEDIUM = 150;
@@ -50,41 +97,152 @@ function getAmplitudePercentage(amplitude: number): number {
 }
 
 // Função para obter dados atualizados
-async function fetchData() {
+async function fetchData(isInitialLoad = false) {
   try {
-    loading = true;
-    data = await getBitcoinData();
+    console.log(`Atualizando dados... (carregamento inicial: ${isInitialLoad})`);
+    
+    if (isInitialLoad) {
+      loading = true;
+    } else {
+      updating = true;
+    }
+    
+    const newData = await getBitcoinData();
+    data = newData;
     error = false;
+    
+    // Registrar o momento da atualização
+    lastUpdated = new Date();
+    // Definir o próximo tempo de atualização
+    nextUpdateTime = new Date(lastUpdated.getTime() + UPDATE_INTERVAL);
+    
+    // Salvar último estado válido para persistência
+    if (newData) {
+      lastData = { ...newData };
+    }
+    
+    console.log(`Dados atualizados: ${lastUpdated?.toLocaleTimeString()}`);
+    console.log(`Próxima atualização: ${nextUpdateTime?.toLocaleTimeString()}`);
+    
+    // Garantir que o contador está funcionando
+    if (!updateTimer) {
+      console.log('Iniciando contador regressivo...');
+      updateTimer = setInterval(() => {
+        updateTimeLeft();
+      }, 1000);
+    }
   } catch (err) {
     console.error('Erro ao atualizar dados:', err);
     error = true;
+    
+    // Usar dados anteriores se disponíveis
+    if (lastData && !isInitialLoad) {
+      console.log('Usando último estado válido dos dados...');
+      data = lastData;
+      error = false; // Não mostrar mensagem de erro pois temos dados para exibir
+    }
   } finally {
     loading = false;
+    updating = false;
+  }
+}
+
+// Função para realizar atualização manual
+async function manualUpdate() {
+  if (updating) return; // Evitar múltiplas atualizações simultâneas
+  
+  console.log('Atualização manual solicitada');
+  await fetchData(false);
+  
+  // Reiniciar o intervalo para evitar atualizações muito próximas
+  if (interval) {
+    clearInterval(interval);
+    
+    interval = setInterval(async () => {
+      console.log('Executando atualização automática após manual:', new Date().toLocaleTimeString());
+      await fetchData(false);
+    }, UPDATE_INTERVAL);
+    
+    console.log('Intervalo de atualização reconfigurado após manual');
   }
 }
 
 // Componente inicializado
 onMount(async () => {
-  await fetchData();
-  
-  // Configurar atualização automática a cada 60 segundos
-  interval = setInterval(fetchData, 60000);
+  try {
+    console.log('Inicializando componente...');
+    await fetchData(true); // Indicar que é o carregamento inicial
+    
+    // Garantir que o timer inicial é definido corretamente
+    if (!nextUpdateTime) {
+      nextUpdateTime = new Date(new Date().getTime() + UPDATE_INTERVAL);
+      console.log('Próxima atualização definida para:', nextUpdateTime.toLocaleTimeString());
+    }
+    
+    // Configurar atualização automática
+    if (interval) clearInterval(interval);
+    
+    interval = setInterval(async () => {
+      console.log('Executando atualização automática:', new Date().toLocaleTimeString());
+      await fetchData(false);
+      console.log('Dados atualizados com sucesso');
+    }, UPDATE_INTERVAL);
+    
+    console.log('Intervalo de atualização configurado:', interval);
+    
+    // Iniciar contador visual para mostrar o tempo até a próxima atualização
+    if (updateTimer) clearInterval(updateTimer);
+    
+    updateTimer = setInterval(() => {
+      updateTimeLeft();
+    }, 1000);
+    
+    console.log('Contador regressivo iniciado');
+  } catch (error) {
+    console.error('Erro na inicialização do componente:', error);
+    throw error;
+  }
 });
 
 // Limpeza ao desmontar o componente
 onDestroy(() => {
   if (interval) {
+    console.log('Limpando intervalo de dados:', interval);
     clearInterval(interval);
+    interval = null;
+  }
+  
+  if (updateTimer) {
+    console.log('Limpando intervalo do contador:', updateTimer);
+    clearInterval(updateTimer);
+    updateTimer = null;
   }
 });
 </script>
 
 <div 
-  class="card p-4 shadow-lg variant-filled-surface max-w-2xl mx-auto"
+  class="card p-4 shadow-lg variant-filled-surface max-w-2xl mx-auto relative"
 >
-  <div class="text-center mb-3">
+  {#if updating}
+    <div class="absolute top-0 left-0 w-full h-1">
+      <div class="h-full bg-primary-300 animate-progress"></div>
+    </div>
+  {/if}
+  <div class="text-center mb-3 relative">
     <h1 class="h3 font-bold text-primary-500">{$_('app.title')}</h1>
     <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{$_('app.subtitle')}</p>
+    <!-- Botão de atualização manual -->
+    <button 
+      class="absolute right-0 top-0 p-2 text-primary-500 hover:text-primary-700 transition-colors" 
+      title="Atualizar dados manualmente" 
+      on:click={() => {
+        console.log('Botão de atualização clicado');
+        manualUpdate();
+      }}
+      disabled={updating}
+    >
+      <span class={updating ? "animate-spin" : ""}>⟳</span>
+    </button>
   </div>
     {#if loading}
     <div class="flex justify-center items-center py-8">
@@ -189,10 +347,15 @@ onDestroy(() => {
         ></div>
       </div>
     </div>
-    
-    <!-- Timestamp de atualização -->
-    <div class="text-right text-xs mt-2">
+      <!-- Timestamp de atualização -->
+    <div class="text-right text-xs mt-2 flex items-center justify-end">
+      {#if updating}
+        <span class="animate-pulse mr-1">⟳</span>
+      {/if}
       {$_('bitcoin.updated')} {format(data.lastUpdate, 'HH:mm:ss')}
+      <span class="ml-1 text-primary-500" title="Tempo até próxima atualização">
+        ({timeLeftStr})
+      </span>
     </div>
   {/if}
 </div>
@@ -204,9 +367,20 @@ onDestroy(() => {
     border-radius: 0.25rem;
     overflow: hidden;
   }
-
   .progress-bar {
     height: 100%;
     transition: width 0.3s ease;
+  }
+  
+  @keyframes progressAnimation {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
+  }
+  
+  .animate-progress {
+    animation: progressAnimation 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    background: linear-gradient(90deg, transparent, var(--color-primary-300), transparent);
+    opacity: 0.7;
   }
 </style>

@@ -67,6 +67,8 @@ export interface BitcoinData {
 
 export const getBitcoinData = async (): Promise<BitcoinData> => {
   try {
+    console.log('API: Iniciando busca de dados do Bitcoin...');
+    
     // Obter dados de 24 horas
     const ticker24hrResponse = await axios.get<Ticker24hr>(`${BASE_URL}/api/v3/ticker/24hr?symbol=BTCUSDT`);
     const ticker24hr = ticker24hrResponse.data;
@@ -120,12 +122,10 @@ export const getBitcoinData = async (): Promise<BitcoinData> => {
     const { high: highPrice1h, low: lowPrice1h, amplitude: amplitude1h } = calculateAmplitude(klines1h);
     const { high: highPrice4h, low: lowPrice4h, amplitude: amplitude4h } = calculateAmplitude(klines4h);
     const { high: highPrice1d, low: lowPrice1d, amplitude: amplitude1d } = calculateAmplitude(klines1d);
-    const { high: highPrice1w, low: lowPrice1w, amplitude: amplitude1w } = calculateAmplitude(klines1w);
-
-    // Armazenar os últimos 10 preços
+    const { high: highPrice1w, low: lowPrice1w, amplitude: amplitude1w } = calculateAmplitude(klines1w);    // Armazenar os últimos 10 preços
     const recentPrices = klines10m.map(k => parseFloat(k.close));
 
-    return {
+    const result = {
       price,
       volume24h,
       percentChange,
@@ -148,8 +148,17 @@ export const getBitcoinData = async (): Promise<BitcoinData> => {
       lastUpdate: new Date(),
       recentPrices
     };
-  } catch (error) {
+    
+    console.log('API: Dados obtidos com sucesso - Preço atual:', price);
+    return result;  } catch (error) {
     console.error('Erro ao obter dados do Bitcoin:', error);
+    if (axios.isAxiosError(error)) {
+      console.error('Detalhes do erro de rede:', error.message);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Dados:', error.response.data);
+      }
+    }
     throw error;
   }
 };
