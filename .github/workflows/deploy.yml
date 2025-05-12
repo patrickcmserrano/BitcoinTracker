@@ -1,6 +1,10 @@
 name: Deploy to GitHub Pages (CD)
 
 on:
+  # Adicionando gatilho automático para pushes no branch main
+  push:
+    branches:
+      - main
   # Only manually or workflow_dispatch
   workflow_dispatch:
     inputs:
