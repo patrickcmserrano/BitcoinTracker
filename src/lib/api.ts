@@ -49,18 +49,28 @@ export interface BitcoinData {
   amplitude10m: number;
   highPrice10m: number;
   lowPrice10m: number;
+  volume10m: number;
+  percentChange10m: number;
   amplitude1h: number;
   highPrice1h: number;
   lowPrice1h: number;
+  volume1h: number;
+  percentChange1h: number;
   amplitude4h: number;
   highPrice4h: number;
   lowPrice4h: number;
+  volume4h: number;
+  percentChange4h: number;
   amplitude1d: number;
   highPrice1d: number;
   lowPrice1d: number;
+  volume1d: number;
+  percentChange1d: number;
   amplitude1w: number;
   highPrice1w: number;
   lowPrice1w: number;
+  volume1w: number;
+  percentChange1w: number;
   lastUpdate: Date;
   recentPrices: number[];
 }
@@ -108,24 +118,49 @@ export const getBitcoinData = async (): Promise<BitcoinData> => {
     const price = parseFloat(ticker24hr.lastPrice);
     const volume24h = parseFloat(ticker24hr.quoteVolume);
     const percentChange = parseFloat(ticker24hr.priceChangePercent);
-    const volumePerHour = volume24h / 24;
-
-    // Função auxiliar para calcular máximos, mínimos e amplitude
+    const volumePerHour = volume24h / 24;    // Função auxiliar para calcular máximos, mínimos e amplitude
     const calculateAmplitude = (klines: Kline[]) => {
       const high = Math.max(...klines.map(k => parseFloat(k.high)));
       const low = Math.min(...klines.map(k => parseFloat(k.low)));
       return { high, low, amplitude: high - low };
     };
 
-    // Calcular amplitudes para diferentes períodos
-    const { high: highPrice10m, low: lowPrice10m, amplitude: amplitude10m } = calculateAmplitude(klines10m);
-    const { high: highPrice1h, low: lowPrice1h, amplitude: amplitude1h } = calculateAmplitude(klines1h);
-    const { high: highPrice4h, low: lowPrice4h, amplitude: amplitude4h } = calculateAmplitude(klines4h);
-    const { high: highPrice1d, low: lowPrice1d, amplitude: amplitude1d } = calculateAmplitude(klines1d);
-    const { high: highPrice1w, low: lowPrice1w, amplitude: amplitude1w } = calculateAmplitude(klines1w);    // Armazenar os últimos 10 preços
-    const recentPrices = klines10m.map(k => parseFloat(k.close));
+    // Função para calcular o volume total em um período
+    const calculateVolume = (klines: Kline[]) => {
+      return klines.reduce((sum, k) => sum + parseFloat(k.quoteAssetVolume), 0);
+    };
 
-    const result = {
+    // Função para calcular a variação percentual em um período
+    const calculatePercentChange = (klines: Kline[]) => {
+      if (klines.length === 0) return 0;
+      const firstPrice = parseFloat(klines[0].open);
+      const lastPrice = parseFloat(klines[klines.length - 1].close);
+      return ((lastPrice - firstPrice) / firstPrice) * 100;
+    };
+
+    // Calcular amplitudes, volumes e variações para diferentes períodos
+    const { high: highPrice10m, low: lowPrice10m, amplitude: amplitude10m } = calculateAmplitude(klines10m);
+    const volume10m = calculateVolume(klines10m);
+    const percentChange10m = calculatePercentChange(klines10m);
+
+    const { high: highPrice1h, low: lowPrice1h, amplitude: amplitude1h } = calculateAmplitude(klines1h);
+    const volume1h = calculateVolume(klines1h);
+    const percentChange1h = calculatePercentChange(klines1h);
+
+    const { high: highPrice4h, low: lowPrice4h, amplitude: amplitude4h } = calculateAmplitude(klines4h);
+    const volume4h = calculateVolume(klines4h);
+    const percentChange4h = calculatePercentChange(klines4h);
+
+    const { high: highPrice1d, low: lowPrice1d, amplitude: amplitude1d } = calculateAmplitude(klines1d);
+    const volume1d = calculateVolume(klines1d);
+    const percentChange1d = calculatePercentChange(klines1d);
+
+    const { high: highPrice1w, low: lowPrice1w, amplitude: amplitude1w } = calculateAmplitude(klines1w);
+    const volume1w = calculateVolume(klines1w);
+    const percentChange1w = calculatePercentChange(klines1w);
+
+    // Armazenar os últimos 10 preços
+    const recentPrices = klines10m.map(k => parseFloat(k.close));    const result = {
       price,
       volume24h,
       percentChange,
@@ -133,18 +168,28 @@ export const getBitcoinData = async (): Promise<BitcoinData> => {
       amplitude10m,
       highPrice10m,
       lowPrice10m,
+      volume10m,
+      percentChange10m,
       amplitude1h,
       highPrice1h,
       lowPrice1h,
+      volume1h,
+      percentChange1h,
       amplitude4h,
       highPrice4h,
       lowPrice4h,
+      volume4h,
+      percentChange4h,
       amplitude1d,
       highPrice1d,
       lowPrice1d,
+      volume1d,
+      percentChange1d,
       amplitude1w,
       highPrice1w,
       lowPrice1w,
+      volume1w,
+      percentChange1w,
       lastUpdate: new Date(),
       recentPrices
     };

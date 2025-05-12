@@ -14,10 +14,10 @@ export default {
   "features.i18n": "Internationalization support",
   "footer.copyright": "© 2025 bitcointracker. Built with Svelte.",
   
-  // BitcoinTracker
-  "bitcoin.loading": "Loading...",
+  // BitcoinTracker  "bitcoin.loading": "Loading...",
   "bitcoin.error": "Error loading data. Please try again later.",
-  "bitcoin.variation": "24h Change:",
+  "bitcoin.variation": "Change",
+  "bitcoin.volume": "Volume",
   "bitcoin.volume24h": "24h Volume:",
   "bitcoin.volumeHourly": "1h Volume (est.):",
   "bitcoin.amplitude10m": "Amplitude (10m):",
@@ -25,5 +25,15 @@ export default {
   "bitcoin.amplitude4h": "Amplitude (4h):",
   "bitcoin.amplitude1d": "Amplitude (1d):",
   "bitcoin.amplitude1w": "Amplitude (weekly):",
-  "bitcoin.updated": "Updated:"
+  "bitcoin.timeframes": "Timeframe:",
+  "bitcoin.highPrice": "High:",
+  "bitcoin.lowPrice": "Low:",
+  "bitcoin.updated": "Updated:",
+  
+  // Timeframe specific information
+  "bitcoin.timeframe10mInfo": "Last 10 minutes data. Useful for quick operations.",
+  "bitcoin.timeframe1hInfo": "Last hour variation. Ideal for short-term trends.",
+  "bitcoin.timeframe4hInfo": "Last 4 hours amplitude. Good for intraday analysis.",
+  "bitcoin.timeframe1dInfo": "Full daily movement with total 24h volume.",
+  "bitcoin.timeframe1wInfo": "Weekly trend. Useful for medium-term analysis."
 };

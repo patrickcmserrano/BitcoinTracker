@@ -17,6 +17,70 @@ let timeLeftStr = '';
 let updateTimer: ReturnType<typeof setInterval> | null = null;
 let lastData: BitcoinData | null = null; // Para persistência do último estado válido
 
+// Estado para controlar o timeframe ativo
+let activeTimeframe = '1h'; // Valor padrão - 1 hora
+
+// Lista de timeframes disponíveis
+const timeframes = [
+  { id: '10m', label: '10m' },
+  { id: '1h', label: '1h' },
+  { id: '4h', label: '4h' },
+  { id: '1d', label: '1d' },
+  { id: '1w', label: '1w' }
+];
+
+// Função para alterar o timeframe ativo
+function changeTimeframe(timeframe: string) {
+  activeTimeframe = timeframe;
+}
+
+// Função para mapear o timeframe para os dados apropriados
+function getTimeframeData(timeframe: string) {
+  if (!data) return null;
+  
+  // Mapeia o timeframe para as propriedades adequadas no objeto de dados
+  // Cada objeto contém o valor de amplitude, alto e baixo para o timeframe
+  const timeframeMap = {
+    '10m': {
+      amplitude: data.amplitude10m,
+      highPrice: data.highPrice10m,
+      lowPrice: data.lowPrice10m,
+      volume: data.volume10m,
+      percentChange: data.percentChange10m
+    },
+    '1h': {
+      amplitude: data.amplitude1h,
+      highPrice: data.highPrice1h,
+      lowPrice: data.lowPrice1h,
+      volume: data.volume1h,
+      percentChange: data.percentChange1h
+    },
+    '4h': {
+      amplitude: data.amplitude4h,
+      highPrice: data.highPrice4h,
+      lowPrice: data.lowPrice4h,
+      volume: data.volume4h,
+      percentChange: data.percentChange4h
+    },
+    '1d': {
+      amplitude: data.amplitude1d,
+      highPrice: data.highPrice1d,
+      lowPrice: data.lowPrice1d,
+      volume: data.volume1d,
+      percentChange: data.percentChange1d
+    },
+    '1w': {
+      amplitude: data.amplitude1w,
+      highPrice: data.highPrice1w,
+      lowPrice: data.lowPrice1w,
+      volume: data.volume1w,
+      percentChange: data.percentChange1w
+    }
+  };
+  
+  return timeframeMap[timeframe as keyof typeof timeframeMap];
+}
+
 // Constante para o intervalo de atualização (em ms)
 const UPDATE_INTERVAL = 15000; // 15 segundos para teste, deve ser 60000 (60s) em produção
 
@@ -258,97 +322,86 @@ onDestroy(() => {
       <span class="text-4xl font-bold">${formatNumber(data.price)}</span>
     </div>
     
-    <!-- Variação percentual -->
-    <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
-      <span>{$_('bitcoin.variation')}</span>
-      <span class={getPercentChangeColor(data.percentChange)}>
-        {data.percentChange >= 0 ? '+' : ''}{formatNumber(data.percentChange)}%
-      </span>
+    <!-- Seletor de Timeframes -->
+    <div class="flex justify-center space-x-1 mb-4">
+      {#each timeframes as timeframe}
+        <button 
+          class="timeframe-btn {activeTimeframe === timeframe.id ? 'active' : ''}"
+          on:click={() => changeTimeframe(timeframe.id)}
+          title={$_(`bitcoin.timeframe${timeframe.id}Info`)}
+        >
+          {timeframe.label}
+        </button>
+      {/each}
     </div>
     
-    <!-- Volume 24h -->
-    <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
-      <span>{$_('bitcoin.volume24h')}</span>
-      <span>${formatNumber(data.volume24h)}</span>
-    </div>
-    
-    <!-- Volume por hora (estimado) -->
-    <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
-      <span>{$_('bitcoin.volumeHourly')}</span>
-      <span>${formatNumber(data.volumePerHour)}</span>
-    </div>
-    
-    <!-- Amplitude 10 minutos -->
-    <div class="mb-3">
-      <div class="flex justify-between items-center mb-1">
-        <span>{$_('bitcoin.amplitude10m')}</span>
-        <span>${formatNumber(data.amplitude10m)}</span>
+    {#if getTimeframeData(activeTimeframe)}
+      {@const timeframeData = getTimeframeData(activeTimeframe)}
+      
+      <!-- Variação percentual do timeframe selecionado -->
+      <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
+        <span>{$_('bitcoin.variation')} ({activeTimeframe})</span>
+        <span class={getPercentChangeColor(timeframeData.percentChange)}>
+          {timeframeData.percentChange >= 0 ? '+' : ''}{formatNumber(timeframeData.percentChange)}%
+        </span>
       </div>
-      <div class="progress">
-        <div 
-          class={`progress-bar ${getAmplitudeColor(data.amplitude10m)}`} 
-          style={`width: ${getAmplitudePercentage(data.amplitude10m)}%`}
-        ></div>
+      
+      <!-- Volume do timeframe selecionado -->
+      <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
+        <span>{$_('bitcoin.volume')} ({activeTimeframe})</span>
+        <span>${formatNumber(timeframeData.volume)}</span>
       </div>
-    </div>
-    
-    <!-- Amplitude 60 minutos -->
-    <div class="mb-3">
-      <div class="flex justify-between items-center mb-1">
-        <span>{$_('bitcoin.amplitude1h')}</span>
-        <span>${formatNumber(data.amplitude1h)}</span>
+      
+      <!-- Amplitude do Timeframe selecionado -->
+      <div class="mb-3">
+        <div class="flex justify-between items-center mb-1">
+          <span>{$_(`bitcoin.amplitude${activeTimeframe}`)}</span>
+          <span>${formatNumber(timeframeData.amplitude)}</span>
+        </div>
+        <div class="progress">
+          <div 
+            class={`progress-bar ${getAmplitudeColor(timeframeData.amplitude)}`} 
+            style={`width: ${getAmplitudePercentage(timeframeData.amplitude)}%`}
+          ></div>
+        </div>
       </div>
-      <div class="progress">
-        <div 
-          class={`progress-bar ${getAmplitudeColor(data.amplitude1h)}`} 
-          style={`width: ${getAmplitudePercentage(data.amplitude1h)}%`}
-        ></div>
+      
+      <!-- Preço mais alto e mais baixo do período -->
+      <div class="flex justify-between mb-2">
+        <div class="text-sm">
+          <span class="text-success-500">▲</span> ${formatNumber(timeframeData.highPrice)}
+        </div>
+        <div class="text-sm">
+          <span class="text-error-500">▼</span> ${formatNumber(timeframeData.lowPrice)}
+        </div>
       </div>
-    </div>
-    
-    <!-- Amplitude 240 minutos (4 horas) -->
-    <div class="mb-3">
-      <div class="flex justify-between items-center mb-1">
-        <span>{$_('bitcoin.amplitude4h')}</span>
-        <span>${formatNumber(data.amplitude4h)}</span>
-      </div>
-      <div class="progress">
-        <div 
-          class={`progress-bar ${getAmplitudeColor(data.amplitude4h)}`} 
-          style={`width: ${getAmplitudePercentage(data.amplitude4h)}%`}
-        ></div>
-      </div>
-    </div>
-    
-    <!-- Amplitude 1 dia -->
-    <div class="mb-3">
-      <div class="flex justify-between items-center mb-1">
-        <span>{$_('bitcoin.amplitude1d')}</span>
-        <span>${formatNumber(data.amplitude1d)}</span>
-      </div>
-      <div class="progress">
-        <div 
-          class={`progress-bar ${getAmplitudeColor(data.amplitude1d)}`} 
-          style={`width: ${getAmplitudePercentage(data.amplitude1d)}%`}
-        ></div>
-      </div>
-    </div>
-    
-    <!-- Amplitude semanal -->
-    <div class="mb-3">
-      <div class="flex justify-between items-center mb-1">
-        <span>{$_('bitcoin.amplitude1w')}</span>
-        <span>${formatNumber(data.amplitude1w)}</span>
-      </div>
-      <div class="progress">
-        <div 
-          class={`progress-bar ${getAmplitudeColor(data.amplitude1w)}`} 
-          style={`width: ${getAmplitudePercentage(data.amplitude1w)}%`}
-        ></div>
-      </div>
-    </div>
-      <!-- Timestamp de atualização -->
-    <div class="text-right text-xs mt-2 flex items-center justify-end">
+      
+      <!-- Informações específicas por timeframe -->
+      {#if activeTimeframe === '10m'}
+        <div class="text-xs text-center mt-2 mb-2 text-gray-600 dark:text-gray-400">
+          {$_('bitcoin.timeframe10mInfo')}
+        </div>
+      {:else if activeTimeframe === '1h'}
+        <div class="text-xs text-center mt-2 mb-2 text-gray-600 dark:text-gray-400">
+          {$_('bitcoin.timeframe1hInfo')}
+        </div>
+      {:else if activeTimeframe === '4h'}
+        <div class="text-xs text-center mt-2 mb-2 text-gray-600 dark:text-gray-400">
+          {$_('bitcoin.timeframe4hInfo')}
+        </div>
+      {:else if activeTimeframe === '1d'}
+        <div class="text-xs text-center mt-2 mb-2 text-gray-600 dark:text-gray-400">
+          {$_('bitcoin.timeframe1dInfo')}
+        </div>
+      {:else if activeTimeframe === '1w'}
+        <div class="text-xs text-center mt-2 mb-2 text-gray-600 dark:text-gray-400">
+          {$_('bitcoin.timeframe1wInfo')}
+        </div>
+      {/if}
+    {/if}
+      
+    <!-- Timestamp de atualização -->
+    <div class="text-right text-xs mt-4 flex items-center justify-end">
       {#if updating}
         <span class="animate-pulse mr-1">⟳</span>
       {/if}
@@ -381,6 +434,40 @@ onDestroy(() => {
   .animate-progress {
     animation: progressAnimation 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     background: linear-gradient(90deg, transparent, var(--color-primary-300), transparent);
+    opacity: 0.7;
+  }
+    /* Estilo para os botões de timeframe */
+  .timeframe-btn {
+    border: 1px solid var(--color-primary-300);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    min-width: 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .timeframe-btn:hover {
+    background-color: var(--color-primary-100);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+    .timeframe-btn.active {
+    background-color: var(--color-primary-500);
+    color: white;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  .timeframe-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background-color: white;
     opacity: 0.7;
   }
 </style>
