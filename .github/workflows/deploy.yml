@@ -1,99 +1,58 @@
-name: Deploy to GitHub Pages (CD)
+name: Deploy Svelte App to GitHub Pages
 
 on:
-  # Executa automaticamente após o workflow de tests ser concluído com sucesso no branch main
-  workflow_run:
-    workflows: ["Build and Test (CI)"]
-    branches: [main]
-    types:
-      - completed
-  # Permite execução manual
-  workflow_dispatch:
-    inputs:
-      deploy_coverage:
-        description: 'Publish coverage report'
-        type: boolean
-        default: true
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering from the Actions tab
 
 permissions:
   contents: read
-  actions: read  # Adicionado para permitir acesso a artefatos
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false # Prevents canceling in-progress deployments
+
 jobs:
-  deploy-app:
-    # Só executa se o workflow de CI foi bem-sucedido
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download build artifact
-        if: ${{ github.event.workflow_run != null }}
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: test-coverage.yml
-          name: build-output
-          path: dist
-          
-      - name: Setup Node and build (if manual trigger)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-      
-      - name: Install and Build (if manual trigger)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+          cache: 'npm' # Cache npm dependencies for faster builds
+
+      - name: Install and Build
         run: |
           npm ci
           npm run build
-      
+
       - name: Create .nojekyll
-        run: touch dist/.nojekyll
-      
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: dist
-          branch: gh-pages
-          clean-exclude: coverage/**
-          commit-message: "Deploy application [skip ci]"
-  
-  deploy-coverage:
-    runs-on: ubuntu-latest
-    if: ${{ (github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch') && (github.event.inputs.deploy_coverage == 'true' || github.event.inputs.deploy_coverage == null) }}
-    needs: deploy-app
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Download coverage report
-        if: ${{ github.event.workflow_run != null }}
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: test-coverage.yml
-          name: coverage-report
-          path: coverage
-      
-      - name: Setup Node and run tests (if manual trigger)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install Dependencies and Generate Coverage (if manual trigger)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        run: touch dist/.nojekyll # Bypasses Jekyll processing
+
+      - name: Verify Build Output
         run: |
-          npm ci
-          npm run test:coverage
-      
-      - name: Deploy Coverage Report
-        uses: JamesIves/github-pages-deploy-action@v4
+          echo "Contents of dist directory:"
+          ls -la dist/
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: coverage/
-          branch: gh-pages
-          target-folder: coverage
-          clean: false
-          commit-message: "Deploy coverage report [skip ci]"
+          path: dist # Correct path for Vite output
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
