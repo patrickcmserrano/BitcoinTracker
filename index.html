@@ -1,9 +1,20 @@
 <!DOCTYPE html>
-<html data-theme="vintage" lang="pt-BR">
+<html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>bitcointracker</title>
+    <script>
+      // Aplicar tema imediatamente no carregamento inicial
+      try {
+        const mode = localStorage.getItem('mode') || 'light';
+        document.documentElement.setAttribute('data-mode', mode);
+        document.documentElement.setAttribute('data-theme', 'vintage');
+      } catch (e) {
+        document.documentElement.setAttribute('data-mode', 'light');
+        document.documentElement.setAttribute('data-theme', 'vintage');
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

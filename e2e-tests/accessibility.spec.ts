@@ -20,9 +20,10 @@ test.describe('Theme Toggle Accessibility Tests', () => {
   });
 
   test('should have proper theme toggle functionality', async ({ page }) => {
-    // Verificar se o toggle de tema está na página
-    const hasThemeToggle = await page.locator('.theme-toggle').isVisible();
-    expect(hasThemeToggle, 'Theme toggle should be visible').toBeTruthy();
+    // Verificar se o toggle de tema está na página usando um seletor mais específico
+    const themeToggleButton = page.getByRole('button', { name: 'Alternar tema claro/escuro' });
+    const isVisible = await themeToggleButton.isVisible();
+    expect(isVisible, 'Theme toggle button should be visible').toBeTruthy();
     
     // Verificar se é possível navegar com teclado até o elemento
     await page.keyboard.press('Tab');

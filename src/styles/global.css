@@ -4,8 +4,33 @@
 @import '@skeletonlabs/skeleton/themes/vintage';
 
 /* Tema escuro baseado em data-attributes */
-:root [data-mode="dark"] {
+:root {
+  --color-primary-300: #fabb76; /* Laranja Bitcoin mais claro */
+  --color-primary-500: #f7931a; /* Laranja Bitcoin padrão */
+  --color-primary-700: #e27b0a; /* Laranja Bitcoin mais escuro */
+  --color-surface-100: #f9fafb;
+  --app-background: #ffffff;
+  --app-text: #1a202c;
+  /* Outras variáveis do tema claro */
+}
+
+/* Configuração específica para o tema escuro */
+[data-mode="dark"] {
   color-scheme: dark;
+  --color-primary-300: #fcd69a; /* Laranja Bitcoin mais claro (dark mode) */
+  --color-primary-500: #f7931a; /* Laranja Bitcoin padrão */
+  --color-primary-700: #e27b0a; /* Laranja Bitcoin mais escuro */
+  --color-surface-100: #1e293b;
+  --app-background: #0f172a;
+  --app-text: #f8fafc;
+  /* Outras variáveis do tema escuro */
+}
+
+/* Aplicar as variáveis ao body */
+body {
+  background-color: var(--app-background);
+  color: var(--app-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 html, body {

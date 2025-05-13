@@ -6,7 +6,22 @@
   import { _ } from './lib/i18n';
   // Inicializa o suporte a idiomas
   import { setupI18n } from './lib/i18n';
+  import { onMount } from 'svelte';
+  
   setupI18n();
+  
+  onMount(() => {
+    // Verificar e sincronizar o tema ao montar o componente principal
+    const storedMode = localStorage.getItem('mode') || 'light';
+    document.documentElement.setAttribute('data-mode', storedMode);
+    
+    // Também definir a classe para compatibilidade com variantes de Tailwind
+    if (storedMode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  });
 </script>
 
 <main class="p-10 space-y-8 container mx-auto">
@@ -14,9 +29,10 @@
     <div class="language-selector">
       <LanguageSelector />
     </div>
-    <div class="theme-toggle">
-      <svelte:component this={ThemeToggle} />
-    </div>  </div>
+    <div class="theme-toggle-container">
+      <ThemeToggle />
+    </div>  
+  </div>
     
   <div class="content-container flex justify-center">
     <BitcoinTracker />
