@@ -24,20 +24,23 @@
   });
 </script>
 
-<main class="p-10 space-y-8 container mx-auto">
-  <div class="flex justify-between items-center">
-    <div class="language-selector">
-      <LanguageSelector />
+<div class="h-screen w-full overflow-y-auto bg-white dark:bg-gray-900">
+  <main class="min-h-full p-10 container mx-auto flex flex-col">
+    <div class="flex justify-between items-center mb-8">
+      <div class="language-selector">
+        <LanguageSelector />
+      </div>
+      <div class="theme-toggle-container">
+        <ThemeToggle />
+      </div>  
     </div>
-    <div class="theme-toggle-container">
-      <ThemeToggle />
-    </div>  
-  </div>
+      
+    <div class="content-container flex-grow flex justify-center">
+      <BitcoinTracker />
+    </div>
     
-  <div class="content-container flex justify-center">
-    <BitcoinTracker />
-  </div>
-  <footer class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
-    <p class="text-sm text-gray-600 dark:text-gray-400">{$_('footer.copyright')}</p>
-  </footer>
-</main>
+    <footer class="mt-8 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+      <p class="text-sm text-gray-600 dark:text-gray-400">{$_('footer.copyright')}</p>
+    </footer>
+  </main>
+</div>
