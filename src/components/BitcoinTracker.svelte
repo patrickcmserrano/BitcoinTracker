@@ -151,22 +151,28 @@ function getAmplitudeColor(amplitude: number, timeframe: string): string {
   const thresholds = AMPLITUDE_THRESHOLDS[timeframe as keyof typeof AMPLITUDE_THRESHOLDS];
   const timeframeData = getTimeframeData(timeframe);
   
-  // Se não tiver dados ou amplitude for pequena, retorna amarelo (fraca)
-  if (!timeframeData || amplitude < thresholds.MEDIUM) {
-    return 'bg-warning-500'; // Amarelo para amplitude fraca
+  if (!timeframeData) return 'bg-gray-500'; // Fallback para cinza se não tiver dados
+  
+  // Amplitude baixa (menor que MEDIUM) - cinza
+  if (amplitude < thresholds.MEDIUM) {
+    return 'bg-gray-500';
   }
   
-  // Verifica se a tendência é positiva ou negativa usando percentChange
-  const isPositive = timeframeData.percentChange >= 0;
+  // Amplitude média (entre MEDIUM e HIGH) - amarelo
+  if (amplitude >= thresholds.MEDIUM && amplitude < thresholds.HIGH) {
+    return 'bg-warning-500';
+  }
   
-  // Se for forte o suficiente, aplica cor baseada na direção
-  if (amplitude > thresholds.MEDIUM) {
+  // Amplitude alta (maior ou igual a HIGH) - verde ou vermelho dependendo da direção
+  if (amplitude >= thresholds.HIGH) {
+    // Verifica se a tendência é positiva ou negativa usando percentChange
+    const isPositive = timeframeData.percentChange >= 0;
     // Verde para positiva forte, vermelho para negativa forte
     return isPositive ? 'bg-success-500' : 'bg-error-500';
   }
   
-  // Fallback para amarelo caso alguma condição não seja coberta
-  return 'bg-warning-500';
+  // Fallback para cinza caso alguma condição não seja coberta
+  return 'bg-gray-500';
 }
 
 // Função para calcular a porcentagem da barra de progresso
