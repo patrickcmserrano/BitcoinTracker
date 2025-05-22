@@ -15,9 +15,15 @@
     // Forçar a atualização de classes em elementos específicos
     if (mode === 'dark') {
       document.documentElement.classList.add('dark');
+      document.documentElement.setAttribute('data-theme', 'vintage');
     } else {
       document.documentElement.classList.remove('dark');
+      document.documentElement.setAttribute('data-theme', 'skeleton');
     }
+    
+    // Forçar atualização das variáveis CSS
+    document.body.style.backgroundColor = 'var(--app-background)';
+    document.body.style.color = 'var(--app-text)';
     
     localStorage.setItem('mode', mode);
     console.log('Tema aplicado e salvo. isDarkMode:', isDarkMode);
@@ -50,9 +56,19 @@
     try {
       const mode = localStorage.getItem('mode') || 'light';
       document.documentElement.setAttribute('data-mode', mode);
+      
+      // Aplicar também o tema do Skeleton
+      if (mode === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.documentElement.setAttribute('data-theme', 'vintage');
+      } else {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.setAttribute('data-theme', 'skeleton');
+      }
     } catch (e) {
       // Fallback se localStorage não estiver disponível
       document.documentElement.setAttribute('data-mode', 'light');
+      document.documentElement.setAttribute('data-theme', 'skeleton');
     }
   </script>
 </svelte:head>
@@ -64,7 +80,7 @@
     id="theme-toggle"
     aria-pressed={isDarkMode}
     aria-label="Alternar tema claro/escuro"
-    onclick={handleThemeChange}
+    on:click={handleThemeChange}
   >
     <Switch
       name="theme"

@@ -24,7 +24,7 @@
   });
 </script>
 
-<div class="h-screen w-full overflow-y-auto bg-white dark:bg-gray-900">
+<div class="h-screen w-full overflow-y-auto" style="background-color: var(--app-background); color: var(--app-text);">
   <main class="min-h-full p-10 container mx-auto flex flex-col">
     <div class="flex justify-between items-center mb-8">
       <div class="language-selector">
