@@ -25,17 +25,18 @@
 </script>
 
 <div class="h-screen w-full overflow-y-auto" style="background-color: var(--app-background); color: var(--app-text);">
-  <main class="min-h-full p-10 container mx-auto flex flex-col">
+  <main class="min-h-full p-4 container mx-auto flex flex-col">
     <div class="flex justify-between items-center mb-8">
       <div class="language-selector">
         <LanguageSelector />
       </div>
+      
       <div class="theme-toggle-container">
         <ThemeToggle />
       </div>  
     </div>
       
-    <div class="content-container flex-grow flex justify-center">
+    <div class="content-container flex-grow">
       <BitcoinTracker />
     </div>
     

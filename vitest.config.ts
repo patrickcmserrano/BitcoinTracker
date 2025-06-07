@@ -8,8 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
-    deps: {
-      inline: [/^svelte/, /@testing-library\/svelte/]
+    server: {
+      deps: {
+        inline: [/^svelte/, /@testing-library\/svelte/]
+      }
     },
     coverage: {
       provider: 'v8',

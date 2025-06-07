@@ -14,9 +14,13 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "coverage": "vitest run --coverage",
+    "test:candlechart": "vitest run src/components/CandleChart.simple.test.ts",
     "e2e": "playwright test",
+    "e2e:container": "playwright test --config=playwright.container.config.ts",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
+    "e2e:headed": "playwright test --headed",
+    "e2e:debug": "playwright test --debug",
     "test:all": "npm run test:run && npm run e2e"
   },
   "devDependencies": {
@@ -42,6 +46,7 @@
     "@tailwindcss/vite": "^4.1.5",
     "axios": "^1.9.0",
     "date-fns": "^4.1.0",
+    "lightweight-charts": "^5.0.7",
     "svelte-i18n": "^4.0.1",
     "svelte-spa-router": "^4.0.1"
   }

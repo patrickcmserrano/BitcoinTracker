@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { getBitcoinData } from '../lib/api';
 import type { BitcoinData } from '../lib/api';
 import { _ } from '../lib/i18n';
+import CandleChart from './CandleChart.svelte';
 
 // Estados para armazenar os dados
 let data: BitcoinData | null = null;
@@ -20,6 +21,9 @@ let lastData: BitcoinData | null = null; // Para persistência do último estado
 // Estado para controlar o timeframe ativo
 let activeTimeframe = '1h'; // Valor padrão - 1 hora
 
+// Estado para controlar a visibilidade do gráfico
+let showChart = false;
+
 // Lista de timeframes disponíveis
 const timeframes = [
   { id: '10m', label: '10m' },
@@ -31,7 +35,22 @@ const timeframes = [
 
 // Função para alterar o timeframe ativo
 function changeTimeframe(timeframe: string) {
+  console.log(`Changing timeframe from ${activeTimeframe} to ${timeframe}`);
+  console.log(`This will map to interval: ${mapTimeframeToInterval(timeframe)}`);
   activeTimeframe = timeframe;
+}
+
+// Função para mapear timeframe do rastreador para intervalo do gráfico
+function mapTimeframeToInterval(timeframe: string): string {
+  const timeframeMap: { [key: string]: string } = {
+    '10m': '5m',   // Rastreador 10m → Gráfico 5m
+    '1h': '1h',    // 1h e 1h (mantém igual)
+    '4h': '4h',    // 4h e 4h (mantém igual)
+    '1d': '1d',    // 1d e 1d (mantém igual)
+    '1w': '1w'     // 1w e 1w (mantém igual)
+  };
+  
+  return timeframeMap[timeframe] || '1m';
 }
 
 // Função para mapear o timeframe para os dados apropriados
@@ -323,30 +342,33 @@ onDestroy(() => {
 });
 </script>
 
-<div 
-  class="card p-4 shadow-lg variant-filled-surface max-w-2xl mx-auto relative"
->
-  {#if updating}
-    <div class="absolute top-0 left-0 w-full h-1">
-      <div class="h-full bg-primary-300 animate-progress"></div>
+<!-- Container principal responsivo -->
+<div class="w-full max-w-6xl mx-auto space-y-6 p-4">
+  <!-- Seção do Bitcoin Tracker -->
+  <div 
+    class="card p-4 shadow-lg variant-filled-surface w-full relative"
+  >
+    {#if updating}
+      <div class="absolute top-0 left-0 w-full h-1">
+        <div class="h-full bg-primary-300 animate-progress"></div>
+      </div>
+    {/if}
+    <div class="text-center mb-3 relative">
+      <h1 class="h3 font-bold text-primary-500">{$_('app.title')}</h1>
+      <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{$_('app.subtitle')}</p>
+      <!-- Botão de atualização manual -->
+      <button 
+        class="absolute right-0 top-0 p-2 text-primary-500 hover:text-primary-700 transition-colors" 
+        title="Atualizar dados manualmente" 
+        on:click={() => {
+          console.log('Botão de atualização clicado');
+          manualUpdate();
+        }}
+        disabled={updating}
+      >
+        <span class={updating ? "animate-spin" : ""}>⟳</span>
+      </button>
     </div>
-  {/if}
-  <div class="text-center mb-3 relative">
-    <h1 class="h3 font-bold text-primary-500">{$_('app.title')}</h1>
-    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{$_('app.subtitle')}</p>
-    <!-- Botão de atualização manual -->
-    <button 
-      class="absolute right-0 top-0 p-2 text-primary-500 hover:text-primary-700 transition-colors" 
-      title="Atualizar dados manualmente" 
-      on:click={() => {
-        console.log('Botão de atualização clicado');
-        manualUpdate();
-      }}
-      disabled={updating}
-    >
-      <span class={updating ? "animate-spin" : ""}>⟳</span>
-    </button>
-  </div>
     {#if loading}
     <div class="flex justify-center items-center py-8">
       <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-500"></div>
@@ -377,43 +399,45 @@ onDestroy(() => {
     {#if getTimeframeData(activeTimeframe)}
       {@const timeframeData = getTimeframeData(activeTimeframe)}
       
-      <!-- Variação percentual do timeframe selecionado -->
-      <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
-        <span>{$_('bitcoin.variation')} ({activeTimeframe})</span>
-        <span class={getPercentChangeColor(timeframeData.percentChange)}>
-          {timeframeData.percentChange >= 0 ? '+' : ''}{formatNumber(timeframeData.percentChange)}%
-        </span>
-      </div>
-      
-      <!-- Volume do timeframe selecionado -->
-      <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
-        <span>{$_('bitcoin.volume')} ({activeTimeframe})</span>
-        <span>${formatNumber(timeframeData.volume)}</span>
-      </div>
-      
-      <!-- Amplitude do Timeframe selecionado -->
-      <div class="mb-3">
-        <div class="flex justify-between items-center mb-1">
-          <span>{$_(`bitcoin.amplitude${activeTimeframe}`)}</span>
-          <span>${formatNumber(timeframeData.amplitude)}</span>
+      {#if timeframeData}
+        <!-- Variação percentual do timeframe selecionado -->
+        <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
+          <span>{$_('bitcoin.variation')} ({activeTimeframe})</span>
+          <span class={getPercentChangeColor(timeframeData.percentChange)}>
+            {timeframeData.percentChange >= 0 ? '+' : ''}{formatNumber(timeframeData.percentChange)}%
+          </span>
         </div>
-        <div class="progress">
-          <div 
-            class={`progress-bar ${getAmplitudeColor(timeframeData.amplitude, activeTimeframe)}`} 
-            style={`width: ${getAmplitudePercentage(timeframeData.amplitude, activeTimeframe)}%`}
-          ></div>
+        
+        <!-- Volume do timeframe selecionado -->
+        <div class="flex justify-between items-center card variant-glass p-2 rounded mb-2">
+          <span>{$_('bitcoin.volume')} ({activeTimeframe})</span>
+          <span>${formatNumber(timeframeData.volume)}</span>
         </div>
-      </div>
-      
-      <!-- Preço mais alto e mais baixo do período -->
-      <div class="flex justify-between mb-2">
-        <div class="text-sm">
-          <span class="text-success-500">▲</span> ${formatNumber(timeframeData.highPrice)}
+        
+        <!-- Amplitude do Timeframe selecionado -->
+        <div class="mb-3">
+          <div class="flex justify-between items-center mb-1">
+            <span>{$_(`bitcoin.amplitude${activeTimeframe}`)}</span>
+            <span>${formatNumber(timeframeData.amplitude)}</span>
+          </div>
+          <div class="progress">
+            <div 
+              class={`progress-bar ${getAmplitudeColor(timeframeData.amplitude, activeTimeframe)}`} 
+              style={`width: ${getAmplitudePercentage(timeframeData.amplitude, activeTimeframe)}%`}
+            ></div>
+          </div>
         </div>
-        <div class="text-sm">
-          <span class="text-error-500">▼</span> ${formatNumber(timeframeData.lowPrice)}
+        
+        <!-- Preço mais alto e mais baixo do período -->
+        <div class="flex justify-between mb-2">
+          <div class="text-sm">
+            <span class="text-success-500">▲</span> ${formatNumber(timeframeData.highPrice)}
+          </div>
+          <div class="text-sm">
+            <span class="text-error-500">▼</span> ${formatNumber(timeframeData.lowPrice)}
+          </div>
         </div>
-      </div>
+      {/if}
       
       <!-- Informações específicas por timeframe -->
       {#if activeTimeframe === '10m'}
@@ -450,6 +474,36 @@ onDestroy(() => {
       </span>
     </div>
   {/if}
+  </div>
+
+  <!-- Seção do Gráfico de Candles -->
+  {#if showChart}
+    <div class="card p-4 shadow-lg variant-filled-surface w-full">
+      <div class="text-center mb-4">
+        <h2 class="h4 font-bold text-primary-500">📊 Gráfico de Candles</h2>
+      </div>
+      
+      <!-- Componente do gráfico de candles -->
+      <div class="w-full">
+        {#key activeTimeframe}
+          <CandleChart 
+            symbol="BTCUSDT" 
+            interval={mapTimeframeToInterval(activeTimeframe)}
+          />
+        {/key}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Botão para mostrar/ocultar gráfico -->
+  <div class="text-center">
+    <button 
+      class="btn variant-filled-primary"
+      on:click={() => showChart = !showChart}
+    >
+      {showChart ? '📈 Ocultar Gráfico' : '📊 Mostrar Gráfico'}
+    </button>
+  </div>
 </div>
 
 <style>

@@ -12,7 +12,7 @@ export default {
   "features.typescript": "Soporte para TypeScript",
   "features.testing": "Pruebas unitarias y e2e",
   "features.i18n": "Soporte para internacionalización",
-  "footer.copyright": "© 2025 bitcointracker. Construido con Svelte.",
+  "footer.copyright": "© 2025 bitcointracker. Construido por Patrick Serrano.",
   
   // BitcoinTracker
   "bitcoin.loading": "Cargando...",
@@ -36,5 +36,16 @@ export default {
   "bitcoin.timeframe1hInfo": "Variación de la última hora. Ideal para tendencias a corto plazo.",
   "bitcoin.timeframe4hInfo": "Amplitud en las últimas 4 horas. Bueno para análisis intradía.",
   "bitcoin.timeframe1dInfo": "Movimiento diario completo con volumen total de 24h.",
-  "bitcoin.timeframe1wInfo": "Tendencia semanal. Útil para análisis a medio plazo."
+  "bitcoin.timeframe1wInfo": "Tendencia semanal. Útil para análisis a medio plazo.",
+  
+  // CandleChart
+  "connected": "Conectado",
+  "disconnected": "Desconectado",
+  "candlestick_chart": "Gráfico de Velas",
+  "last_price": "Último Precio",
+  "24h_change": "Cambio 24h",
+  "connection": "Conexión",
+  "online": "En línea",
+  "offline": "Desconectado",
+  "interval": "Intervalo"
 };
