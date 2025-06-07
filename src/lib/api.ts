@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { getTaapiService, initializeTaapiService } from './taapi-service';
+import { getAppConfig, isTaapiConfigured } from './config';
 
 const BASE_URL = 'https://api.binance.com';
 
@@ -73,9 +75,52 @@ export interface BitcoinData {
   percentChange1w: number;
   lastUpdate: Date;
   recentPrices: number[];
+  // TAAPI indicators
+  atr14Daily?: number;
+  atrLastUpdated?: Date;
 }
 
-export const getBitcoinData = async (): Promise<BitcoinData> => {
+/**
+ * Fetches ATR14 daily data from TAAPI
+ */
+export const getATRData = async (): Promise<{ atr14Daily: number; atrLastUpdated: Date } | null> => {
+  try {
+    if (!isTaapiConfigured()) {
+      console.log('TAAPI: Service not configured, skipping ATR fetch');
+      return null;
+    }
+
+    const config = getAppConfig();
+    
+    // Initialize TAAPI service if needed
+    let taapiService;
+    try {
+      taapiService = getTaapiService();
+    } catch {
+      taapiService = initializeTaapiService(config.taapiSecretKey);
+    }
+
+    const atrResponse = await taapiService.getATR({
+      symbol: 'BTC/USDT',
+      interval: '1d',
+      exchange: 'binance',
+      period: 14
+    });
+
+    return {
+      atr14Daily: atrResponse.value,
+      atrLastUpdated: new Date()
+    };
+
+  } catch (error) {
+    console.error('Error fetching ATR data:', error);
+    return null;
+  }
+};
+
+export const getBitcoinData = async (options: { checkATR?: boolean } = {}): Promise<BitcoinData> => {
+  const { checkATR = true } = options;
+  
   try {
     console.log('API: Iniciando busca de dados do Bitcoin...');
     
@@ -160,7 +205,12 @@ export const getBitcoinData = async (): Promise<BitcoinData> => {
     const percentChange1w = calculatePercentChange(klines1w);
 
     // Armazenar os últimos 10 preços
-    const recentPrices = klines10m.map(k => parseFloat(k.close));    const result = {
+    const recentPrices = klines10m.map(k => parseFloat(k.close));
+
+    // Fetch ATR data only if requested (this will be cached and rate-limited)
+    const atrData = checkATR ? await getATRData() : null;
+
+    const result = {
       price,
       volume24h,
       percentChange,
@@ -191,7 +241,12 @@ export const getBitcoinData = async (): Promise<BitcoinData> => {
       volume1w,
       percentChange1w,
       lastUpdate: new Date(),
-      recentPrices
+      recentPrices,
+      // Add ATR data if available
+      ...(atrData && {
+        atr14Daily: atrData.atr14Daily,
+        atrLastUpdated: atrData.atrLastUpdated
+      })
     };
     
     console.log('API: Dados obtidos com sucesso - Preço atual:', price);

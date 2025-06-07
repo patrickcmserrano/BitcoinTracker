@@ -7,7 +7,7 @@ import { _ } from '../lib/i18n';
 import CandleChart from './CandleChart.svelte';
 
 // Estados para armazenar os dados
-let data: BitcoinData | null = null;
+export let data: BitcoinData | null = null;
 let loading = true; // Apenas para o carregamento inicial
 let updating = false; // Estado para indicar atualização em andamento
 let error = false;
@@ -17,6 +17,12 @@ let lastUpdated: Date | null = null;
 let timeLeftStr = '';
 let updateTimer: ReturnType<typeof setInterval> | null = null;
 let lastData: BitcoinData | null = null; // Para persistência do último estado válido
+
+// Estados exportados para serem compartilhados com TaapiIndicators
+export { loading };
+export let atrError: string | null = null;
+export let lastATRCheck: Date | null = null; // Para controlar quando foi a última verificação de ATR
+export let nextATRCheck: Date | null = null; // Para mostrar quando será a próxima verificação de ATR
 
 // Estado para controlar o timeframe ativo
 let activeTimeframe = '1h'; // Valor padrão - 1 hora
@@ -51,6 +57,11 @@ function mapTimeframeToInterval(timeframe: string): string {
   };
   
   return timeframeMap[timeframe] || '1m';
+}
+
+// Função pública para forçar atualização de ATR (chamada pelo componente pai)
+export function triggerATRUpdate() {
+  fetchData(false, true);
 }
 
 // Função para mapear o timeframe para os dados apropriados
@@ -100,8 +111,11 @@ function getTimeframeData(timeframe: string) {
   return timeframeMap[timeframe as keyof typeof timeframeMap];
 }
 
-// Constante para o intervalo de atualização (em ms)
-const UPDATE_INTERVAL = 15000; // 15 segundos para teste, deve ser 60000 (60s) em produção
+
+
+// Constantes para intervalos de atualização (em ms)
+const UPDATE_INTERVAL = 15000; // 15 segundos para dados do Bitcoin
+const ATR_CHECK_INTERVAL = 300000; // 5 minutos para verificar ATR (mais conservador)
 
 // Valores de amplitude para cada timeframe
 const AMPLITUDE_THRESHOLDS = {
@@ -138,7 +152,7 @@ function updateTimeLeft() {
   const diff = nextUpdateTime.getTime() - now.getTime();
   
   if (diff <= 0) {
-    timeLeftStr = 'em breve...';
+    timeLeftStr = 'atualizando...';
     
     // Verificar se o intervalo ainda está funcionando se o tempo já passou
     if (!updating && diff < -5000) { // Se 5 segundos se passaram após o tempo previsto
@@ -147,16 +161,16 @@ function updateTimeLeft() {
       // Se não estiver atualizando e o tempo já passou, talvez o intervalo parou
       if (interval) {
         console.log('Forçando uma nova atualização...');
-        fetchData(false);
+        fetchData(false, false); // Não força ATR, apenas dados do Bitcoin
       } else {
         console.log('Intervalo perdido, recriando...');
         interval = setInterval(async () => {
           console.log('Executando atualização automática (recriada):', new Date().toLocaleTimeString());
-          await fetchData(false);
+          await fetchData(false, false); // Atualização regular, não força ATR
         }, UPDATE_INTERVAL);
         
         // Forçar uma atualização imediata
-        fetchData(false);
+        fetchData(false, false);
       }
     }
   } else {
@@ -218,8 +232,18 @@ function getPercentChangeColor(percentChange: number): string {
   return percentChange >= 0 ? 'text-success-500' : 'text-error-500';
 }
 
+// Função para verificar se deve atualizar dados ATR
+function shouldUpdateATR(): boolean {
+  if (!lastATRCheck) return true; // Primeira vez
+  
+  const now = new Date();
+  const timeSinceLastCheck = now.getTime() - lastATRCheck.getTime();
+  
+  return timeSinceLastCheck >= ATR_CHECK_INTERVAL;
+}
+
 // Função para obter dados atualizados
-async function fetchData(isInitialLoad = false) {
+async function fetchData(isInitialLoad = false, forceATRUpdate = false) {
   try {
     console.log(`Atualizando dados... (carregamento inicial: ${isInitialLoad})`);
     
@@ -229,13 +253,36 @@ async function fetchData(isInitialLoad = false) {
       updating = true;
     }
     
-    const newData = await getBitcoinData();
+    // Determinar se deve atualizar ATR
+    const shouldCheckATR = forceATRUpdate || shouldUpdateATR();
+    
+    if (shouldCheckATR) {
+      console.log('Verificando dados ATR...');
+      // Clear previous ATR error only when checking ATR
+      atrError = null;
+    }
+    
+    const newData = await getBitcoinData({ checkATR: shouldCheckATR });
+    
+    // Se não verificamos ATR mas tínhamos dados anteriores, preserve-os
+    if (!shouldCheckATR && data?.atr14Daily) {
+      newData.atr14Daily = data.atr14Daily;
+      newData.atrLastUpdated = data.atrLastUpdated;
+    }
+    
     data = newData;
     error = false;
     
-    // Registrar o momento da atualização
+    // Atualizar timestamp de verificação ATR se foi verificado
+    if (shouldCheckATR) {
+      lastATRCheck = new Date();
+      nextATRCheck = new Date(lastATRCheck.getTime() + ATR_CHECK_INTERVAL);
+      console.log(`ATR verificado às ${lastATRCheck.toLocaleTimeString()}, próxima verificação às ${nextATRCheck.toLocaleTimeString()}`);
+    }
+    
+    // Registrar o momento da atualização dos dados do Bitcoin
     lastUpdated = new Date();
-    // Definir o próximo tempo de atualização
+    // Definir o próximo tempo de atualização dos dados do Bitcoin
     nextUpdateTime = new Date(lastUpdated.getTime() + UPDATE_INTERVAL);
     
     // Salvar último estado válido para persistência
@@ -257,6 +304,12 @@ async function fetchData(isInitialLoad = false) {
     console.error('Erro ao atualizar dados:', err);
     error = true;
     
+    // Check if it's a TAAPI-specific error only if we were checking ATR
+    const wasCheckingATR = forceATRUpdate || shouldUpdateATR();
+    if (wasCheckingATR && err instanceof Error && err.message.includes('Request failed with status code')) {
+      atrError = err.message;
+    }
+    
     // Usar dados anteriores se disponíveis
     if (lastData && !isInitialLoad) {
       console.log('Usando último estado válido dos dados...');
@@ -273,17 +326,15 @@ async function fetchData(isInitialLoad = false) {
 async function manualUpdate() {
   if (updating) return; // Evitar múltiplas atualizações simultâneas
   
-  console.log('Atualização manual solicitada');
-  await fetchData(false);
+  console.log('Atualização manual solicitada - incluindo verificação de ATR');
+  await fetchData(false, true); // Força atualização do ATR na atualização manual
   
   // Reiniciar o intervalo para evitar atualizações muito próximas
   if (interval) {
-    clearInterval(interval);
-    
-    interval = setInterval(async () => {
-      console.log('Executando atualização automática após manual:', new Date().toLocaleTimeString());
-      await fetchData(false);
-    }, UPDATE_INTERVAL);
+    clearInterval(interval);        interval = setInterval(async () => {
+          console.log('Executando atualização automática após manual:', new Date().toLocaleTimeString());
+          await fetchData(false, false); // Atualização regular após manual
+        }, UPDATE_INTERVAL);
     
     console.log('Intervalo de atualização reconfigurado após manual');
   }
@@ -293,7 +344,8 @@ async function manualUpdate() {
 onMount(async () => {
   try {
     console.log('Inicializando componente...');
-    await fetchData(true); // Indicar que é o carregamento inicial
+    
+    await fetchData(true, true); // Carregamento inicial incluindo ATR
     
     // Garantir que o timer inicial é definido corretamente
     if (!nextUpdateTime) {
@@ -306,7 +358,7 @@ onMount(async () => {
     
     interval = setInterval(async () => {
       console.log('Executando atualização automática:', new Date().toLocaleTimeString());
-      await fetchData(false);
+      await fetchData(false, false); // Atualização regular, ATR verificado conforme necessário
       console.log('Dados atualizados com sucesso');
     }, UPDATE_INTERVAL);
     
@@ -464,14 +516,24 @@ onDestroy(() => {
     {/if}
       
     <!-- Timestamp de atualização -->
-    <div class="text-right text-xs mt-4 flex items-center justify-end">
-      {#if updating}
-        <span class="animate-pulse mr-1">⟳</span>
+    <div class="text-right text-xs mt-4">
+      <div class="flex items-center justify-end mb-1">
+        {#if updating}
+          <span class="animate-pulse mr-1">⟳</span>
+        {/if}
+        {$_('bitcoin.updated')} {format(data.lastUpdate, 'HH:mm:ss')}
+        <span class="ml-1 text-primary-500" title="Próxima atualização dos dados do Bitcoin">
+          ({timeLeftStr})
+        </span>
+      </div>
+      {#if lastATRCheck && nextATRCheck}
+        <div class="text-xs text-surface-600-300-token">
+          ATR verificado: {format(lastATRCheck, 'HH:mm:ss')}
+          <span class="ml-1" title="Próxima verificação de ATR">
+            (próx. {format(nextATRCheck, 'HH:mm')})
+          </span>
+        </div>
       {/if}
-      {$_('bitcoin.updated')} {format(data.lastUpdate, 'HH:mm:ss')}
-      <span class="ml-1 text-primary-500" title="Tempo até próxima atualização">
-        ({timeLeftStr})
-      </span>
     </div>
   {/if}
   </div>
@@ -504,6 +566,8 @@ onDestroy(() => {
       {showChart ? '📈 Ocultar Gráfico' : '📊 Mostrar Gráfico'}
     </button>
   </div>
+
+
 </div>
 
 <style>

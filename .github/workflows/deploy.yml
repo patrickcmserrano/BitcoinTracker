@@ -31,7 +31,15 @@ jobs:
       - name: Install and Build
         run: |
           npm ci
+          echo "Building with TAAPI configuration..."
+          if [ -n "$VITE_TAAPI_SECRET" ]; then
+            echo "✅ TAAPI Secret is configured"
+          else
+            echo "⚠️ TAAPI Secret not found - ATR indicator will be unavailable"
+          fi
           npm run build
+        env:
+          VITE_TAAPI_SECRET: ${{ secrets.VITE_TAAPI_SECRET }}
 
       - name: Create .nojekyll
         run: touch dist/.nojekyll # Bypasses Jekyll processing

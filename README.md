@@ -1,6 +1,59 @@
 # bitcointracker
 
-Uma aplicação moderna para monitoramento em tempo real do valor do Bitcoin, construída com Svelte, TypeScript e Skeleton UI.
+Uma aplicação moderna para monitoramento em tempo real do valor do Bitcoin, construída com S4. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Access the project**
+   The project will be available at `http://localhost:5173`
+
+## TAAPI.IO Integration
+
+This application integrates with [TAAPI.IO](https://taapi.io) to provide technical indicators, specifically the ATR14 (Average True Range with 14-period) for Bitcoin daily analysis.
+
+### Getting Started with TAAPI
+
+1. **Get your free API key**: Visit [taapi.io](https://taapi.io) and sign up for a free account
+2. **Configure the key**: Add your API key to the `.env` file or use the in-app configuration interface
+3. **Features included**:
+   - ATR14 Daily indicator for Bitcoin volatility analysis
+   - Intelligent caching (5-minute TTL) to optimize API usage
+   - Rate limiting to respect API quotas
+   - Graceful fallback when API is unavailable
+
+### Production Deployment
+
+#### GitHub Pages
+
+For GitHub Pages deployment, configure the API key using GitHub Secrets:
+
+1. **Go to your repository on GitHub**
+2. **Navigate to Settings → Secrets and variables → Actions**
+3. **Click "New repository secret"**
+4. **Configure:**
+   - **Name:** `VITE_TAAPI_SECRET`
+   - **Secret:** Your TAAPI.IO API key
+5. **Click "Add secret"**
+
+The deployment workflow will automatically use this secret during the build process.
+
+#### Other Hosting Platforms
+
+For other hosting platforms, set the `VITE_TAAPI_SECRET` environment variable:
+
+```bash
+# Using environment variables (recommended for production)
+export VITE_TAAPI_SECRET=your_taapi_secret_key_here
+npm run build
+```
+
+### Development vs Production
+
+- **Development**: API key can be configured via UI and stored in localStorage
+- **Production (GitHub Pages)**: Use GitHub Secrets for security
+- **Production (Other platforms)**: Use environment variables for security
+- **Fallback**: Application works without TAAPI configuration (ATR indicator will show as unavailable)TypeScript e Skeleton UI.
 
 ## Visão Geral
 
@@ -18,10 +71,13 @@ Este projeto inclui:
 - Exibição em tempo real do preço do Bitcoin em USD
 - Visualização da variação percentual nas últimas 24h
 - Monitoramento do volume de negociação (24h e estimativa por hora)
-- Indicador visual da amplitude de preço nos últimos 10 minutos
-- Atualização automática dos dados a cada 60 segundos
+- Indicador visual da amplitude de preço em múltiplos timeframes (10m, 1h, 4h, 1d, 1w)
+- **ATR14 Daily** - Average True Range de 14 períodos para análise de volatilidade (via TAAPI.IO)
+- Gráfico de candles interativo com múltiplos timeframes
+- Atualização automática dos dados a cada 15 segundos
+- Cache inteligente para otimização de APIs externas
 - Alternância entre temas claro/escuro
-- Suporte a múltiplos idiomas
+- Suporte a múltiplos idiomas (português, inglês, espanhol)
    ├── 📂 public/
    │   └── vite.svg
    ├── 📂 src/
@@ -94,7 +150,18 @@ The project uses TypeScript with the following main configurations:
    npm install
    ```
 
-3. **Start the development server**
+3. **Configure TAAPI.IO (Optional)**
+   ```bash
+   # Copy the environment example file
+   cp .env.example .env
+   
+   # Edit .env and add your TAAPI secret key
+   VITE_TAAPI_SECRET=your_taapi_secret_key_here
+   ```
+   
+   Alternatively, you can configure the API key through the application interface during development.
+
+4. **Start the development server**
    ```bash
    npm run dev
    ```
