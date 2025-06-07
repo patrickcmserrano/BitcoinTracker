@@ -1,31 +1,17 @@
 <script lang="ts">
-  import './styles/global.css';
-  import ThemeToggle from './components/ThemeToggle.svelte';
+  import './styles/global.css';  import ThemeToggle from './components/ThemeToggle.svelte';
   import LanguageSelector from './components/LanguageSelector.svelte';
   import BitcoinTracker from './components/BitcoinTracker.svelte';
-  import TaapiIndicators from './components/TaapiIndicators.svelte';
   import { _ } from './lib/i18n';
   // Inicializa o suporte a idiomas
   import { setupI18n } from './lib/i18n';
   import { onMount } from 'svelte';
   import type { BitcoinData } from './lib/api';
-  
   setupI18n();
-  
-  // Estado compartilhado entre componentes
+    // Estado compartilhado entre componentes
   let bitcoinData: BitcoinData | null = null;
   let loading = false;
-  let atrError: string | null = null;
-  let lastATRCheck: Date | null = null;
-  let nextATRCheck: Date | null = null;
   let bitcoinTrackerRef: BitcoinTracker;
-  
-  // Função para ser chamada quando a configuração TAAPI é alterada
-  function handleATRConfiguration() {
-    if (bitcoinTrackerRef && bitcoinTrackerRef.triggerATRUpdate) {
-      bitcoinTrackerRef.triggerATRUpdate();
-    }
-  }
   
   onMount(() => {
     // Verificar e sincronizar o tema ao montar o componente principal
@@ -53,23 +39,10 @@
       </div>  
     </div>
       
-    <div class="content-container flex-grow space-y-6">
-      <BitcoinTracker 
+    <div class="content-container flex-grow space-y-6">      <BitcoinTracker 
         bind:this={bitcoinTrackerRef}
         bind:data={bitcoinData}
         bind:loading={loading}
-        bind:atrError={atrError}
-        bind:lastATRCheck={lastATRCheck}
-        bind:nextATRCheck={nextATRCheck}
-      />
-      
-      <TaapiIndicators 
-        data={bitcoinData}
-        loading={loading}
-        atrError={atrError}
-        lastATRCheck={lastATRCheck}
-        nextATRCheck={nextATRCheck}
-        onConfigureATR={handleATRConfiguration}
       />
     </div>
     
