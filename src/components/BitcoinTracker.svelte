@@ -544,13 +544,14 @@ onDestroy(() => {
       <div class="text-center mb-4">
         <h2 class="h4 font-bold text-primary-500">📊 Gráfico de Candles</h2>
       </div>
-      
-      <!-- Componente do gráfico de candles -->
+        <!-- Componente do gráfico de candles -->
       <div class="w-full">
         {#key activeTimeframe}
           <CandleChart 
             symbol="BTCUSDT" 
             interval={mapTimeframeToInterval(activeTimeframe)}
+            activeTimeframe={activeTimeframe}
+            onTimeframeChange={changeTimeframe}
           />
         {/key}
       </div>

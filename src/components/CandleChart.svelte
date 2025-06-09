@@ -5,6 +5,8 @@ import { createChart, ColorType, CandlestickSeries, type IChartApi, type ISeries
 // Props
 export let symbol = 'BTCUSDT';
 export let interval = '1m';
+export let activeTimeframe = '1h'; // Timeframe ativo do rastreador
+export let onTimeframeChange: ((timeframe: string) => void) | null = null; // Callback para mudança de timeframe
 
 // Variáveis do componente
 let chartContainer: HTMLDivElement;
@@ -25,6 +27,35 @@ let resizeObserver: ResizeObserver | null = null;
 // Variáveis para rastrear mudanças nas props
 let previousSymbol = symbol;
 let previousInterval = interval;
+
+// Lista de timeframes disponíveis (mesmo do rastreador)
+const timeframes = [
+  { id: '10m', label: '10m' },
+  { id: '1h', label: '1h' },
+  { id: '4h', label: '4h' },
+  { id: '1d', label: '1d' },
+  { id: '1w', label: '1w' }
+];
+
+// Função para mapear timeframe do rastreador para intervalo do gráfico
+function mapTimeframeToInterval(timeframe: string): string {
+  const timeframeMap: { [key: string]: string } = {
+    '10m': '5m',   // Rastreador 10m → Gráfico 5m
+    '1h': '1h',    // 1h e 1h (mantém igual)
+    '4h': '4h',    // 4h e 4h (mantém igual)
+    '1d': '1d',    // 1d e 1d (mantém igual)
+    '1w': '1w'     // 1w e 1w (mantém igual)
+  };
+  
+  return timeframeMap[timeframe] || '1m';
+}
+
+// Função para alterar o timeframe quando em modo maximizado
+function changeTimeframe(timeframe: string) {
+  if (onTimeframeChange) {
+    onTimeframeChange(timeframe);
+  }
+}
 
 // Estado para preservar dados do gráfico durante transições
 let chartData: { candlestickData: CandlestickData[] } | null = null;
@@ -92,7 +123,8 @@ function initChart(container?: HTMLDivElement) {
     borderColor: '#9ca3af', // gray-400
   };
 
-  chart = createChart(targetContainer, {
+  // Configurações otimizadas para modo maximizado
+  const chartOptions = {
     width: targetContainer.clientWidth,
     height: containerHeight,
     layout: {
@@ -105,16 +137,31 @@ function initChart(container?: HTMLDivElement) {
     },
     crosshair: {
       mode: 1,
-    },
-    rightPriceScale: {
+    },    rightPriceScale: {
       borderColor: colors.borderColor,
+      scaleMargins: {
+        top: isMaximized ? 0.02 : 0.1,
+        bottom: isMaximized ? 0.02 : 0.1,
+      },
     },
     timeScale: {
       borderColor: colors.borderColor,
       timeVisible: true,
       secondsVisible: false,
+      barSpacing: isMaximized ? 10 : 6, // Mais espaço entre barras no modo maximizado
     },
-  });
+    // Remover bordas quando maximizado
+    ...(isMaximized && {
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+    }),
+  };
+
+  chart = createChart(targetContainer, chartOptions);
 
   // Adicionar série de candles
   candleSeries = chart.addSeries(CandlestickSeries, {
@@ -452,23 +499,36 @@ onDestroy(() => {
     onkeydown={(e) => e.key === 'Escape' && maximizeChart()}
     tabindex="-1"
   >
-    <div class="maximized-content">
-      <!-- Header do gráfico maximizado -->
-      <div class="maximized-header">
-        <div class="flex items-center gap-3">
+    <div class="maximized-content">      <!-- Header do gráfico maximizado -->
+      <div class="maximized-header">        <div class="flex items-center gap-2 flex-1">
           <h2 
             id="maximized-chart-title"
-            class="text-xl font-bold text-primary-600 dark:text-primary-300"
+            class="text-lg font-bold text-primary-600 dark:text-primary-300"
           >
             {symbol} - {interval}
           </h2>
           <span 
-            class="text-sm bg-primary-100 dark:bg-primary-800 px-2 py-1 rounded"
+            class="text-xs bg-primary-100 dark:bg-primary-800 px-1.5 py-0.5 rounded"
             aria-label="Estado do gráfico"
           >
-            Maximizado
+            Max
           </span>
+        </div>        <!-- Seletor de Timeframes no modo maximizado -->
+        <div class="flex items-center gap-1.5 mx-1.5">
+          <span class="text-xs font-medium text-gray-600 dark:text-gray-300">TF:</span>
+          <div class="flex gap-0.5">
+            {#each timeframes as timeframe}
+              <button 
+                class="timeframe-btn-maximized {activeTimeframe === timeframe.id ? 'active' : ''}"
+                onclick={() => changeTimeframe(timeframe.id)}
+                title={`Alterar para timeframe ${timeframe.label}`}
+              >
+                {timeframe.label}
+              </button>
+            {/each}
+          </div>
         </div>
+        
         <button 
           class="close-btn"
           onclick={maximizeChart}
@@ -526,28 +586,26 @@ onDestroy(() => {
     background: color-mix(in srgb, var(--crypto-color, #3b82f6) 60%, black);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
-  
-  /* Overlay maximizado */
+    /* Overlay maximizado */
   .maximized-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.85);
     z-index: 1000;
     display: flex;
     justify-content: center;
     align-items: center;
-    backdrop-filter: blur(4px);
-  }
-  
-  .maximized-content {
-    width: 95vw;
-    height: 95vh;
+    backdrop-filter: blur(6px);
+    padding: 2px;
+  }  .maximized-content {
+    width: calc(100vw - 4px);
+    height: calc(100vh - 4px);
     background: var(--color-surface-50);
-    border-radius: 12px;
-    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -556,29 +614,29 @@ onDestroy(() => {
   :global(.dark) .maximized-content {
     background: var(--color-surface-900);
   }
-  
   .maximized-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 4px 10px;
     background: var(--color-surface-100);
     border-bottom: 1px solid var(--color-surface-300);
+    min-height: 40px;
+    flex-shrink: 0;
   }
   
   :global(.dark) .maximized-header {
     background: var(--color-surface-800);
     border-bottom-color: var(--color-surface-600);
   }
-  
-  .close-btn {
+    .close-btn {
     background: var(--color-error-500);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -586,17 +644,66 @@ onDestroy(() => {
     align-items: center;
     justify-content: center;
   }
-  
-  .close-btn:hover {
+    .close-btn:hover {
     background: var(--color-error-600);
     transform: scale(1.1);
   }
+  /* Estilos para os botões de timeframe no modo maximizado */
+  .timeframe-btn-maximized {
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--color-primary-300);
+    border-radius: 0.2rem;
+    background-color: transparent;
+    color: var(--color-primary-600);
+    font-size: 0.65rem;
+    font-weight: 500;
+    transition: all 0.12s ease;
+    cursor: pointer;
+    min-width: 2rem;
+    line-height: 1.2;
+  }
   
-  .maximized-chart {
+  .timeframe-btn-maximized:hover {
+    background-color: var(--color-primary-100);
+    border-color: var(--color-primary-400);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .timeframe-btn-maximized.active {
+    background-color: var(--color-primary-500);
+    color: white;
+    border-color: var(--color-primary-500);
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+  
+  .timeframe-btn-maximized.active:hover {
+    background-color: var(--color-primary-600);
+    border-color: var(--color-primary-600);
+  }
+  
+  /* Modo escuro para os botões de timeframe */
+  :global(.dark) .timeframe-btn-maximized {
+    border-color: var(--color-primary-400);
+    color: var(--color-primary-300);
+  }
+  
+  :global(.dark) .timeframe-btn-maximized:hover {
+    background-color: var(--color-primary-800);
+    border-color: var(--color-primary-300);
+  }
+  
+  :global(.dark) .timeframe-btn-maximized.active {
+    background-color: var(--color-primary-500);
+    color: white;
+    border-color: var(--color-primary-500);
+  }  .maximized-chart {
     flex: 1;
-    margin: 20px;
-    border-radius: 8px;
+    margin: 1px;
+    border-radius: 0;
     background: var(--color-surface-50);
+    overflow: hidden;
   }
   
   :global(.dark) .maximized-chart {

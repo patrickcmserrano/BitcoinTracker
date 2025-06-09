@@ -625,12 +625,13 @@ onDestroy(() => {
           <div class="text-center mb-2">
             <h2 class="text-lg font-bold text-primary-500">📊 Gráfico de Candles</h2>
           </div>
-          
-          <!-- Container do gráfico -->
+            <!-- Container do gráfico -->
           <div class="w-full">
             <CandleChart 
               symbol={config.binanceSymbol}
               interval={mapTimeframeToInterval(activeTimeframe)}
+              activeTimeframe={activeTimeframe}
+              onTimeframeChange={changeTimeframe}
             />
           </div>
         </div>
