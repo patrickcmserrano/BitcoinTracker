@@ -18,24 +18,23 @@
   });
 </script>
 
-<div class="language-selector">
-  <button 
+<div class="language-selector">  <button 
     class={currentLocale === 'en' ? 'active' : ''} 
-    on:click={() => setLanguage('en')}
+    onclick={() => setLanguage('en')}
     aria-label="English"
   >
     EN
   </button>
   <button 
     class={currentLocale === 'pt' ? 'active' : ''} 
-    on:click={() => setLanguage('pt')}
+    onclick={() => setLanguage('pt')}
     aria-label="Português"
   >
     PT
   </button>
   <button 
     class={currentLocale === 'es' ? 'active' : ''} 
-    on:click={() => setLanguage('es')}
+    onclick={() => setLanguage('es')}
     aria-label="Español"
   >
     ES

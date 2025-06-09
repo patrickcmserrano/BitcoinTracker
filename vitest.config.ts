@@ -2,7 +2,14 @@ import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
-  plugins: [svelte({ hot: !process.env.VITEST })],
+  plugins: [
+    svelte({ 
+      hot: !process.env.VITEST,
+      compilerOptions: {
+        dev: true
+      }
+    })
+  ],
   test: {
     include: ['src/**/*.{test,spec}.{js,ts,svelte}'],
     environment: 'jsdom',
@@ -12,6 +19,10 @@ export default defineConfig({
       deps: {
         inline: [/^svelte/, /@testing-library\/svelte/]
       }
+    },
+    alias: {
+      $lib: './src/lib',
+      $app: './src/app'
     },
     coverage: {
       provider: 'v8',
@@ -27,4 +38,10 @@ export default defineConfig({
       ],
     },
   },
+  define: {
+    global: 'globalThis',
+  },
+  resolve: {
+    conditions: ['browser']
+  }
 });

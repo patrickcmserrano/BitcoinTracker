@@ -44,21 +44,20 @@ test.describe('Internationalization (i18n) Tests', () => {
     expect(titleAfterSecondChange).not.toBe(initialTitle);
     expect(titleAfterSecondChange).not.toBe(titleAfterChange);
   });
-
   test('should display texts corresponding to the selected language', async ({ page }) => {
     // Expected texts in each language (based on i18n.ts file)
     const expectedTexts = {
       en: {
-        title: 'Bitcoin Price Tracker',
-        subtitle: 'Real-time Bitcoin price monitoring dashboard.'
+        title: 'Price Tracker - Bitcoin',
+        subtitle: 'The world\'s first decentralized cryptocurrency'
       },
       pt: {
-        title: 'Rastreador de Preço do Bitcoin',
-        subtitle: 'Painel de monitoramento de preço do Bitcoin em tempo real.'
+        title: 'Rastreador de Preço - Bitcoin',
+        subtitle: 'A primeira criptomoeda descentralizada do mundo'
       },
       es: {
-        title: 'Rastreador de Precio de Bitcoin',
-        subtitle: 'Panel de monitoreo del precio de Bitcoin en tiempo real.'
+        title: 'Rastreador de Precio - Bitcoin',
+        subtitle: 'La primera criptomoneda descentralizada del mundo'
       }
     };
     
@@ -75,12 +74,11 @@ test.describe('Internationalization (i18n) Tests', () => {
       
       // Wait for the text to change
       await page.waitForTimeout(500);
-      
-      // Check the title
+        // Check the title
       const title = await page.getByRole('heading', { level: 1 }).textContent();
-      expect(title).toContain(expectedTexts[lang.code].title);
+      expect(title).toBe(expectedTexts[lang.code].title);
       
-      // Check the subtitle
+      // Check the subtitle (Bitcoin description)
       const subtitle = page.getByText(expectedTexts[lang.code].subtitle, { exact: true });
       await expect(subtitle).toBeVisible();
     }

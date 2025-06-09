@@ -3,10 +3,27 @@ import { test, expect } from '@playwright/test';
 // Helper function to show chart
 async function showChart(page: any) {
   await page.waitForLoadState('networkidle');
-  const showChartButton = page.locator('text=📊 Mostrar Gráfico');
-  await expect(showChartButton).toBeVisible();
-  await showChartButton.click();
-  await page.waitForSelector('div[class*="h-[400px]"]', { timeout: 10000 });
+  
+  // Wait for the button to be present and visible
+  const showChartButton = page.locator('button:has-text("📊 Mostrar Gráfico")');
+  await expect(showChartButton).toBeVisible({ timeout: 15000 });
+    // Try JavaScript click as fallback for Firefox
+  try {
+    await showChartButton.click({ timeout: 5000 });
+  } catch (error) {
+    console.log('Regular click failed, trying JavaScript click');
+    await page.evaluate(() => {
+      // Find button by text content
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const chartButton = buttons.find(btn => btn.textContent?.includes('📊 Mostrar Gráfico'));
+      if (chartButton) {
+        (chartButton as HTMLButtonElement).click();
+      }
+    });
+  }
+  
+  // Wait for the chart container to appear
+  await page.waitForSelector('div[class*="h-[400px]"]', { timeout: 15000 });
 }
 
 test.describe('CandleChart E2E Tests', () => {

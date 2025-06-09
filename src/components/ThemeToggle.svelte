@@ -73,14 +73,13 @@
   </script>
 </svelte:head>
 
-<div aria-label="Theme toggle" class="theme-toggle-wrapper">
-  <button 
+<div aria-label="Theme toggle" class="theme-toggle-wrapper">  <button 
     type="button"
     class="theme-toggle"
     id="theme-toggle"
     aria-pressed={isDarkMode}
     aria-label="Alternar tema claro/escuro"
-    on:click={handleThemeChange}
+    onclick={handleThemeChange}
   >
     <Switch
       name="theme"

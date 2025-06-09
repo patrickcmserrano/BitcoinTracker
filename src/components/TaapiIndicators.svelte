@@ -1,11 +1,12 @@
 <script lang="ts">
 import ATRIndicator from './ATRIndicator.svelte';
-import type { BitcoinData } from '../lib/api';
+import type { CryptoConfig, CryptoData } from '../lib/crypto-config';
 import { _ } from '../lib/i18n';
 import { isTaapiConfigured, setTaapiSecretKey, showConfigStatus, clearTaapiSecretKey } from '../lib/config';
 
-// Props
-export let data: BitcoinData | null = null;
+// Props - agora genérico para qualquer criptomoeda
+export let cryptoConfig: CryptoConfig;
+export let currentData: CryptoData | null = null;
 export let loading = false;
 export let atrError: string | null = null;
 export let lastATRCheck: Date | null = null;
@@ -62,13 +63,12 @@ checkTaapiStatus();
 </script>
 
 <!-- Container dos Indicadores TAAPI -->
-<div class="card p-4 shadow-lg variant-filled-surface w-full">
-  <div class="text-center mb-4">
+<div class="card p-4 shadow-lg variant-filled-surface w-full">  <div class="text-center mb-4">
     <h2 class="h4 font-bold text-primary-500">
-      📈 Indicadores Técnicos (TAAPI.IO)
+      {cryptoConfig.icon} Indicadores Técnicos - {cryptoConfig.name}
     </h2>
     <p class="text-sm text-surface-600-300-token mt-1">
-      Análise técnica avançada com indicadores profissionais
+      Análise técnica avançada para {cryptoConfig.name} com indicadores profissionais
     </p>
   </div>
 
@@ -91,9 +91,8 @@ checkTaapiStatus();
       <!-- ATR14 Daily -->
       <div class="card variant-glass p-3 rounded">
         <h3 class="font-semibold mb-2 text-primary-500">ATR14 Daily</h3>
-        <ATRIndicator 
-          atr14Daily={data?.atr14Daily} 
-          atrLastUpdated={data?.atrLastUpdated} 
+        <ATRIndicator          atr14Daily={currentData?.atr14Daily} 
+          atrLastUpdated={currentData?.atrLastUpdated}
           loading={loading}
           error={atrError}
         />
@@ -126,10 +125,9 @@ checkTaapiStatus();
 
     <!-- Botão para reconfigurar (apenas em desenvolvimento) -->
     {#if !import.meta.env.PROD}
-      <div class="text-center mt-4">
-        <button
+      <div class="text-center mt-4">        <button
           class="btn variant-outline-primary"
-          on:click={() => {
+          onclick={() => {
             if (!import.meta.env.PROD) {
               showApiConfig = true;
             }
@@ -138,10 +136,9 @@ checkTaapiStatus();
           Reconfigurar API
         </button>
         
-        {#if atrError}
-          <button
+        {#if atrError}          <button
             class="btn variant-outline-error ml-2"
-            on:click={clearApiConfiguration}
+            onclick={clearApiConfiguration}
           >
             Limpar Configuração
           </button>
@@ -170,10 +167,9 @@ checkTaapiStatus();
           <h3 class="font-semibold mb-2">⚠️ API não configurada</h3>
           <p class="text-sm">Configure sua chave da API TAAPI.IO para acessar indicadores técnicos profissionais.</p>
         </div>
-        
-        <button
+          <button
           class="btn variant-filled-primary"
-          on:click={() => {
+          onclick={() => {
             if (!import.meta.env.PROD) {
               showApiConfig = true;
             }
@@ -206,9 +202,8 @@ checkTaapiStatus();
         </div>
         
         <div class="flex gap-2">
-          <button
-            class="btn variant-filled-primary flex-1"
-            on:click={configureApiKey}
+          <button            class="btn variant-filled-primary flex-1"
+            onclick={configureApiKey}
             disabled={!apiKeyInput.trim() || loading}
           >
             {taapiConfigured ? 'Atualizar Chave' : 'Configurar API'}
@@ -216,7 +211,7 @@ checkTaapiStatus();
           
           <button
             class="btn variant-outline-secondary"
-            on:click={() => { showApiConfig = false; apiKeyInput = ''; }}
+            onclick={() => { showApiConfig = false; apiKeyInput = ''; }}
           >
             Cancelar
           </button>

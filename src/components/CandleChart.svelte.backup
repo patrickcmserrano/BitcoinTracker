@@ -139,8 +139,7 @@ function initChart(container?: HTMLDivElement) {
       }
     }
   });
-  
-  // Observar o container atual se ele existir
+    // Observar o container atual se ele existir
   if (targetContainer) {
     resizeObserver.observe(targetContainer);
   }
@@ -414,6 +413,222 @@ onDestroy(() => {
     resizeObserver.disconnect();
   }
 });
+</script>
+
+async function loadHistoricalData() {
+  try {
+    console.log(`Loading historical data for ${symbol} with interval ${interval}`);
+    
+    // Carregar histórico dos últimos 100 candles
+    const apiUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=100`;
+    console.log(`API URL: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl);
+    const data = await response.json();
+    
+    console.log(`Received ${data.length} candles for interval ${interval}`);
+    
+    const formattedData: CandlestickData[] = data.map((kline: any[]) => ({
+      time: Math.floor(kline[0] / 1000) as Time, // Converter de ms para segundos
+      open: parseFloat(kline[1]),
+      high: parseFloat(kline[2]),
+      low: parseFloat(kline[3]),
+      close: parseFloat(kline[4]),
+    }));    if (candleSeries) {
+      candleSeries.setData(formattedData);
+    }
+    
+    // Definir o último candle para referência
+    if (formattedData.length > 0) {
+      lastCandle = formattedData[formattedData.length - 1];
+    }
+
+    // Ajustar a visualização
+    if (chart) {
+      chart.timeScale().fitContent();
+    }
+    
+    // Conectar ao WebSocket após carregar o histórico
+    connectWebSocket();
+  } catch (error) {
+    console.error('Erro ao carregar dados históricos:', error);
+    // Tentar conectar ao WebSocket mesmo se falhar o histórico
+    connectWebSocket();
+  }
+}
+
+function connectWebSocket() {
+  if (ws) {
+    ws.close();
+  }
+
+  const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`;
+  console.log(`Connecting to WebSocket: ${wsUrl}`);
+  ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    console.log(`WebSocket connected for ${symbol} ${interval}`);
+    connectionAttempts = 0;
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    handleKlineData(data);
+  };
+
+  ws.onclose = () => {
+    console.log('WebSocket desconectado');
+    
+    // Tentar reconectar se não exceder o limite
+    if (connectionAttempts < maxReconnectAttempts) {
+      connectionAttempts++;
+      console.log(`Tentativa de reconexão ${connectionAttempts}/${maxReconnectAttempts}`);
+      setTimeout(() => {
+        connectWebSocket();
+      }, 3000); // Esperar 3 segundos antes de reconectar
+    }
+  };
+
+  ws.onerror = (error) => {
+    console.error('Erro no WebSocket:', error);
+  };
+}
+
+function handleKlineData(data: any) {
+  const kline = data.k;
+  if (!kline) return;
+
+  const candleData: CandlestickData = {
+    time: Math.floor(kline.t / 1000) as Time, // Converter de ms para segundos
+    open: parseFloat(kline.o),
+    high: parseFloat(kline.h),
+    low: parseFloat(kline.l),
+    close: parseFloat(kline.c),
+  };
+  // Se é um novo candle (tempo diferente do último)
+  if (!lastCandle || candleData.time !== lastCandle.time) {
+    if (candleSeries) {
+      candleSeries.update(candleData);
+    }
+    lastCandle = candleData;
+  } else {
+    // Atualizar o candle atual
+    if (candleSeries) {
+      candleSeries.update(candleData);
+    }
+    lastCandle = candleData;
+  }
+}
+
+// Função para reinicializar o gráfico e os dados
+function reinitializeChart() {
+  console.log(`Reinitializing chart for ${symbol} with interval ${interval}`);
+  
+  // Fechar WebSocket atual
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  
+  // Limpar dados do gráfico atual
+  if (candleSeries && chart) {
+    candleSeries.setData([]);
+  }
+  
+  // Resetar estados
+  lastCandle = null;
+  connectionAttempts = 0;
+  
+  // Recarregar dados históricos e reconectar WebSocket
+  loadHistoricalData();
+}
+
+// Estado para preservar dados do gráfico durante transições
+let chartData: { candlestickData: CandlestickData[] } | null = null;
+let currentTimeRange: LogicalRange | null = null;
+
+// Função para salvar o estado atual do gráfico
+function saveChartState() {
+  if (chart && candleSeries) {
+    try {
+      // Salvar dados da série de candlestick
+      const seriesData = candleSeries.data();
+      chartData = {
+        candlestickData: Array.isArray(seriesData) ? seriesData : []
+      };
+        // Salvar range de tempo visível
+      const timeScale = chart.timeScale();
+      currentTimeRange = timeScale.getVisibleLogicalRange();
+    } catch (error) {
+      console.warn('Erro ao salvar estado do gráfico:', error);
+      chartData = null;
+      currentTimeRange = null;
+    }
+  }
+}
+
+// Função para restaurar o estado do gráfico
+function restoreChartState() {
+  if (chart && chartData && candleSeries) {
+    try {
+      // Recriar série com os dados salvos
+      if (chartData.candlestickData && chartData.candlestickData.length > 0) {
+        candleSeries.setData(chartData.candlestickData);
+      }
+      
+      // Restaurar range de tempo se disponível
+      if (currentTimeRange) {
+        chart.timeScale().setVisibleLogicalRange(currentTimeRange);
+      } else {
+        chart.timeScale().fitContent();
+      }
+    } catch (error) {
+      console.warn('Erro ao restaurar estado do gráfico:', error);
+      // Fallback: ajustar conteúdo
+      chart.timeScale().fitContent();
+    }
+  }
+}
+
+// Função para maximizar/minimizar o gráfico
+function maximizeChart() {
+  // Salvar estado atual antes da transição
+  saveChartState();
+  
+  // Alterar estado de maximização
+  isMaximized = !isMaximized;
+  
+  // Destruir gráfico atual
+  if (chart) {
+    chart.remove();
+    chart = null;
+    candleSeries = null;
+  }
+  
+  // Aguardar um frame para que o DOM seja atualizado
+  setTimeout(() => {
+    const container = isMaximized ? maximizedContainer : chartContainer;
+    if (container) {
+      // Recriar gráfico no novo container
+      initChart(container);
+      
+      // Restaurar dados e configurações
+      restoreChartState();
+      
+      // Reestabelecer WebSocket se necessário
+      if (symbol && interval) {
+        connectWebSocket();
+      }
+    }
+  }, 100);
+}
+
+// Função para fechar maximização com ESC
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && isMaximized) {
+    maximizeChart();
+  }
+}
 </script>
 
 <!-- Interface do usuário -->
