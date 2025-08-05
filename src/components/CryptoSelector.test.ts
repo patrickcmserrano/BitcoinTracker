@@ -5,7 +5,7 @@ describe('CryptoSelector Component', () => {
   it('should have correct crypto configurations', () => {
     const cryptos = getAllCryptos();
     expect(cryptos).toBeDefined();
-    expect(cryptos).toHaveLength(3);
+    expect(cryptos).toHaveLength(7);
     
     // Bitcoin
     expect(cryptos[0]).toMatchObject({
@@ -33,17 +33,61 @@ describe('CryptoSelector Component', () => {
       icon: '◎',
       color: '#9945ff'
     });
+
+    // XRP
+    expect(cryptos[3]).toMatchObject({
+      id: 'xrp',
+      name: 'XRP',
+      symbol: 'XRP',
+      icon: '◯',
+      color: '#23292f'
+    });
+
+    // PAXG
+    expect(cryptos[4]).toMatchObject({
+      id: 'paxg',
+      name: 'PAX Gold',
+      symbol: 'PAXG',
+      icon: '🥇',
+      color: '#ffd700'
+    });
+
+    // TRX
+    expect(cryptos[5]).toMatchObject({
+      id: 'trx',
+      name: 'TRON',
+      symbol: 'TRX',
+      icon: '⚡',
+      color: '#ff060a'
+    });
+
+    // USDT/BRL
+    expect(cryptos[6]).toMatchObject({
+      id: 'usdtbrl',
+      name: 'USDT/BRL',
+      symbol: 'USDT/BRL',
+      icon: '💱',
+      color: '#26a17b'
+    });
   });
 
   it('should provide correct Binance symbols for API calls', () => {
     expect(CRYPTO_CONFIGS.bitcoin.binanceSymbol).toBe('BTCUSDT');
     expect(CRYPTO_CONFIGS.ethereum.binanceSymbol).toBe('ETHUSDT');
     expect(CRYPTO_CONFIGS.solana.binanceSymbol).toBe('SOLUSDT');
+    expect(CRYPTO_CONFIGS.xrp.binanceSymbol).toBe('XRPUSDT');
+    expect(CRYPTO_CONFIGS.paxg.binanceSymbol).toBe('PAXGUSDT');
+    expect(CRYPTO_CONFIGS.trx.binanceSymbol).toBe('TRXUSDT');
+    expect(CRYPTO_CONFIGS.usdtbrl.binanceSymbol).toBe('USDTBRL');
   });
 
   it('should provide correct TAAPI symbols for technical indicators', () => {
     expect(CRYPTO_CONFIGS.bitcoin.taapiSymbol).toBe('BTC/USDT');
     expect(CRYPTO_CONFIGS.ethereum.taapiSymbol).toBe('ETH/USDT');
     expect(CRYPTO_CONFIGS.solana.taapiSymbol).toBe('SOL/USDT');
+    expect(CRYPTO_CONFIGS.xrp.taapiSymbol).toBe('XRP/USDT');
+    expect(CRYPTO_CONFIGS.paxg.taapiSymbol).toBe('PAXG/USDT');
+    expect(CRYPTO_CONFIGS.trx.taapiSymbol).toBe('TRX/USDT');
+    expect(CRYPTO_CONFIGS.usdtbrl.taapiSymbol).toBe('USDT/BRL');
   });
 });

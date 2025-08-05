@@ -22,6 +22,23 @@ export default {
   // Solana específico
   "crypto.solana.name": "Solana",
   "crypto.solana.description": "Blockchain de alto rendimiento para aplicaciones descentralizadas",
+  
+  // XRP específico
+  "crypto.xrp.name": "XRP",
+  "crypto.xrp.description": "Activo digital para pagos transfronterizos y remesas",
+  
+  // PAXG específico
+  "crypto.paxg.name": "PAX Gold",
+  "crypto.paxg.description": "Criptomoneda respaldada por oro para propiedad digital de oro",
+  
+  // TRX específico
+  "crypto.trx.name": "TRON",
+  "crypto.trx.description": "Plataforma blockchain para entretenimiento de contenido y aplicaciones descentralizadas",
+  
+  // USDT/BRL específico
+  "crypto.usdtbrl.name": "USDT/BRL",
+  "crypto.usdtbrl.description": "Tipo de cambio Tether a Real Brasileño",
+  
   "features.title": "Características Incluidas",
   "features.theme": "Alternancia de tema claro/oscuro",
   "features.accessibility": "Accesibilidad básica",

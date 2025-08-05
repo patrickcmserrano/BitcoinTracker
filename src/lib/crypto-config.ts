@@ -86,6 +86,46 @@ export const CRYPTO_CONFIGS: Record<string, CryptoConfig> = {
     icon: '◎',
     color: '#9945ff',
     precision: 2
+  },
+  xrp: {
+    id: 'xrp',
+    name: 'XRP',
+    symbol: 'XRP',
+    binanceSymbol: 'XRPUSDT',
+    taapiSymbol: 'XRP/USDT',
+    icon: '◯',
+    color: '#23292f',
+    precision: 4
+  },
+  paxg: {
+    id: 'paxg',
+    name: 'PAX Gold',
+    symbol: 'PAXG',
+    binanceSymbol: 'PAXGUSDT',
+    taapiSymbol: 'PAXG/USDT',
+    icon: '🥇',
+    color: '#ffd700',
+    precision: 0
+  },
+  trx: {
+    id: 'trx',
+    name: 'TRON',
+    symbol: 'TRX',
+    binanceSymbol: 'TRXUSDT',
+    taapiSymbol: 'TRX/USDT',
+    icon: '⚡',
+    color: '#ff060a',
+    precision: 6
+  },
+  usdtbrl: {
+    id: 'usdtbrl',
+    name: 'USDT/BRL',
+    symbol: 'USDT/BRL',
+    binanceSymbol: 'USDTBRL',
+    taapiSymbol: 'USDT/BRL',
+    icon: '💱',
+    color: '#26a17b',
+    precision: 2
   }
 };
 
