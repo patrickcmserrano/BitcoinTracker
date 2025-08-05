@@ -483,7 +483,7 @@ onDestroy(() => {
   {#if !isMaximized}
     <div 
       bind:this={chartContainer}
-      class="w-full h-[300px] sm:h-[400px] lg:h-[500px] xl:h-[450px] rounded"
+      class="w-full h-full min-h-[400px] max-h-[700px] rounded"
     ></div>
   {/if}
 </div>

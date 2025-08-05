@@ -8,6 +8,7 @@
   import { setupI18n } from './lib/i18n';
   import { onMount } from 'svelte';  import { selectedCrypto, currentCryptoData, isCurrentCryptoLoading } from './lib/crypto-store';
   import type { CryptoData } from './lib/crypto-config';
+  import { initCryptoIcons } from './lib/crypto-icons';
   
   setupI18n();
   
@@ -20,7 +21,7 @@
   $: currentData = $currentCryptoData;
   $: loading = $isCurrentCryptoLoading;
   
-  onMount(() => {
+  onMount(async () => {
     // Verificar e sincronizar o tema ao montar o componente principal
     const storedMode = localStorage.getItem('mode') || 'light';
     document.documentElement.setAttribute('data-mode', storedMode);
@@ -31,6 +32,9 @@
     } else {
       document.documentElement.classList.remove('dark');
     }
+    
+    // Initialize crypto icons from official sources
+    await initCryptoIcons();
   });
 </script>
 

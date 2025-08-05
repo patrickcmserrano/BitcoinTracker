@@ -3,6 +3,7 @@
   import { selectedCrypto, selectCrypto } from '../lib/crypto-store';
   import type { CryptoConfig } from '../lib/crypto-config';
   import { _ } from '../lib/i18n';
+  import CryptoIcon from './CryptoIcon.svelte';
   
   const cryptos = getAllCryptos();
   
@@ -25,7 +26,9 @@
         onclick={() => handleSelect(crypto)}
         title={$_(`crypto.${crypto.id}.description`)}
       >
-        <span class="crypto-icon">{crypto.icon}</span>
+        <div class="crypto-icon">
+          <CryptoIcon cryptoId={crypto.id} size="md" />
+        </div>
         <span class="crypto-name">{crypto.symbol}</span>
       </button>
     {/each}

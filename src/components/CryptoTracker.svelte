@@ -5,6 +5,7 @@ import { getCryptoData } from '../lib/crypto-api';
 import type { CryptoConfig, CryptoData } from '../lib/crypto-config';
 import { _ } from '../lib/i18n';
 import CandleChart from './CandleChart.svelte';
+import CryptoIcon from './CryptoIcon.svelte';
 
 // Props obrigatórias
 export let config: CryptoConfig;
@@ -442,14 +443,14 @@ onDestroy(() => {
 });
 </script>
 
-<!-- Container principal responsivo com altura adaptável -->
-<div class="w-full mx-auto px-2 py-1">
+<!-- Container principal responsivo com altura adaptável para viewport completo -->
+<div class="w-full h-full mx-auto px-2 py-1">
   <!-- Layout responsivo: lado a lado em telas grandes, empilhado em telas pequenas -->
-  <div class="flex flex-col xl:flex-row gap-3 xl:items-start">
+  <div class="flex flex-col xl:flex-row gap-3 xl:items-stretch">
     <!-- Seção do Crypto Tracker (dados) -->
     <div class="xl:w-1/2 flex-shrink-0 flex flex-col">
       <div
-        class="card p-3 shadow-lg variant-filled-surface w-full relative crypto-tracker"
+        class="card p-3 shadow-lg variant-filled-surface w-full relative crypto-tracker flex flex-col xl:h-full"
         style="--crypto-color: {config.color}"
       >
         {#if updating}
@@ -491,7 +492,9 @@ onDestroy(() => {
         {:else if data}
           <!-- Preço principal compacto -->
           <div class="flex items-center justify-center my-1">
-            <span class="mr-2 text-lg" style="color: var(--crypto-color)">{config.icon}</span>
+            <div class="mr-2" style="color: var(--crypto-color)">
+              <CryptoIcon cryptoId={config.id} size="md" />
+            </div>
             <span class="text-2xl font-bold">${formatNumber(data.price)}</span>
           </div>
           
@@ -599,34 +602,15 @@ onDestroy(() => {
             {/if}
           </div>
         {/if}
-      </div>      <!-- Botão para mostrar/ocultar gráfico temático -->
-      <div class="text-center mt-2 space-y-2">
-        <button 
-          class="btn-crypto-theme btn-sm"
-          onclick={() => showChart = !showChart}
-        >
-          {showChart ? '📈 Ocultar Gráfico' : '📊 Mostrar Gráfico'}
-        </button>
-          <!-- Dica sobre maximização do gráfico -->
-        {#if showChart}
-          <div class="maximize-hint">
-            <span class="text-sm text-gray-600 dark:text-gray-400">
-              💡 Clique no botão ⛶ no canto superior direito do gráfico para maximizar
-            </span>
-          </div>
-        {/if}
       </div>
     </div>
 
     <!-- Seção do Gráfico de Candles -->
     {#if showChart}
-      <div class="xl:w-1/2 flex-shrink-0">
-        <div class="card p-3 shadow-lg variant-filled-surface w-full">
-          <div class="text-center mb-2">
-            <h2 class="text-lg font-bold text-primary-500">📊 Gráfico de Candles</h2>
-          </div>
+      <div class="xl:w-1/2 flex-shrink-0 flex flex-col">
+        <div class="card p-3 shadow-lg variant-filled-surface w-full flex flex-col xl:h-full">
             <!-- Container do gráfico -->
-          <div class="w-full">
+          <div class="w-full flex-1">
             <CandleChart 
               symbol={config.binanceSymbol}
               interval={mapTimeframeToInterval(activeTimeframe)}
@@ -867,18 +851,33 @@ onDestroy(() => {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
   
-  /* Estilo para dica de maximização */
-  .maximize-hint {
-    margin-top: 8px;
-    padding: 8px 12px;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
-    border-radius: 6px;
-    text-align: center;
+  /* Container matching heights for optimal display */
+  @media (min-width: 1280px) {
+    :global(.xl\\:items-stretch) > * {
+      min-height: 550px;
+    }
+    
+    :global(.flex.flex-col.xl\\:h-full) {
+      height: 100%;
+    }
   }
   
-  :global(.dark) .maximize-hint {
-    background: rgba(59, 130, 246, 0.15);
-    border-color: rgba(59, 130, 246, 0.3);
+  /* Better viewport utilization without overflow */
+  @media (min-height: 800px) and (min-width: 1280px) {
+    :global(.xl\\:items-stretch) > * {
+      min-height: 600px;
+    }
+  }
+  
+  @media (min-height: 1000px) and (min-width: 1280px) {
+    :global(.xl\\:items-stretch) > * {
+      min-height: 650px;
+    }
+  }
+  
+  @media (min-height: 1200px) and (min-width: 1280px) {
+    :global(.xl\\:items-stretch) > * {
+      min-height: 700px;
+    }
   }
 </style>
