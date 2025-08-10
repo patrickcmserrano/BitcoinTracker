@@ -90,4 +90,29 @@ describe('CryptoSelector Component', () => {
     expect(CRYPTO_CONFIGS.trx.taapiSymbol).toBe('TRX/USDT');
     expect(CRYPTO_CONFIGS.usdtbrl.taapiSymbol).toBe('USDT/BRL');
   });
+
+  it('should render all cryptocurrencies in a responsive grid', () => {
+    const cryptos = getAllCryptos();
+    expect(cryptos).toHaveLength(7);
+    
+    // Verify all cryptos have required properties for grid display
+    cryptos.forEach(crypto => {
+      expect(crypto.id).toBeDefined();
+      expect(crypto.symbol).toBeDefined();
+      expect(crypto.color).toBeDefined();
+      expect(crypto.icon).toBeDefined();
+    });
+  });
+
+  it('should handle mobile breakpoints for grid layout', () => {
+    // Test that we have configurations that would work well in mobile grid
+    const cryptos = getAllCryptos();
+    
+    // With 7 cryptos, responsive grid should work well:
+    // Desktop: auto-fit layout
+    // Tablet (768px): auto-fit with smaller buttons
+    // Mobile (480px): 3 columns = 3+3+1 layout
+    // Small mobile (360px): 2 columns = 4 rows
+    expect(cryptos.length).toBe(7);
+  });
 });

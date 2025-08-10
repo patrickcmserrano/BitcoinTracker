@@ -12,18 +12,17 @@
   }
 </script>
 
-<div class="crypto-selector">
-  <div class="text-center mb-4">
+<div class="crypto-selector">  <div class="text-center mb-4">
     <h2 class="h4 font-bold text-surface-900-50-token mb-2">
       {$_('crypto.selector.title')}
     </h2>
   </div>
   
-  <div class="flex space-x-2 justify-center mb-6">
+  <div class="crypto-grid mb-6">
     {#each cryptos as crypto}      <button 
         class="crypto-btn {$selectedCrypto.id === crypto.id ? 'active' : ''}"
         style="--crypto-color: {crypto.color}"
-        onclick={() => handleSelect(crypto)}
+        on:click={() => handleSelect(crypto)}
         title={$_(`crypto.${crypto.id}.description`)}
       >
         <div class="crypto-icon">
@@ -35,16 +34,25 @@
   </div>
 </div>
 
-<style>
-  .crypto-selector {
+<style>  .crypto-selector {
     margin-bottom: 1rem;
   }
-    .crypto-btn {
+  .crypto-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 1rem;
+  }
+  .crypto-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 0.5rem;
     border: 2px solid transparent;
     border-radius: 0.5rem;
     background-color: #f3f4f6; /* gray-100 */
@@ -52,7 +60,9 @@
     font-weight: 500;
     transition: all 0.2s ease;
     cursor: pointer;
-    min-width: 80px;
+    width: 100px;
+    height: 80px;
+    flex: 0 0 auto;
     position: relative;
   }
   
@@ -83,16 +93,23 @@
     border-right: 6px solid transparent;
     border-bottom: 6px solid var(--crypto-color);
   }
-  
-  .crypto-icon {
+    .crypto-icon {
     font-size: 1.5rem;
     line-height: 1;
     margin-bottom: 0.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
   }
-  
-  .crypto-name {
+    .crypto-name {
     font-size: 0.875rem;
     font-weight: inherit;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
     /* Dark mode adjustments */
   :global(.dark) .crypto-btn {
@@ -121,12 +138,16 @@
     border-bottom-color: var(--crypto-color);
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
   }
-  
-  /* Responsive design */
-  @media (max-width: 640px) {
+    /* Responsive design */  @media (max-width: 768px) {
+    .crypto-grid {
+      gap: 0.4rem;
+      padding: 0 0.5rem;
+    }
+    
     .crypto-btn {
-      min-width: 70px;
-      padding: 0.5rem 0.75rem;
+      width: 90px;
+      height: 75px;
+      padding: 0.6rem 0.4rem;
     }
     
     .crypto-icon {
@@ -135,6 +156,43 @@
     
     .crypto-name {
       font-size: 0.75rem;
+    }
+  }  @media (max-width: 480px) {
+    .crypto-grid {
+      gap: 0.3rem;
+      padding: 0 0.25rem;
+    }
+    
+    .crypto-btn {
+      width: 80px;
+      height: 70px;
+      padding: 0.5rem 0.25rem;
+    }
+    
+    .crypto-icon {
+      font-size: 1rem;
+    }
+    
+    .crypto-name {
+      font-size: 0.7rem;
+    }
+  }  @media (max-width: 360px) {
+    .crypto-grid {
+      gap: 0.25rem;
+    }
+    
+    .crypto-btn {
+      width: 70px;
+      height: 65px;
+      padding: 0.4rem 0.2rem;
+    }
+    
+    .crypto-icon {
+      font-size: 0.9rem;
+    }
+    
+    .crypto-name {
+      font-size: 0.65rem;
     }
   }
 </style>

@@ -49,9 +49,7 @@
       <div class="theme-toggle-container">
         <ThemeToggle />
       </div>  
-    </div>
-    
-    <!-- Conteúdo principal com altura responsiva -->
+    </div>    <!-- Conteúdo principal com altura responsiva -->
     <div class="content-container flex-grow space-y-3 flex flex-col">
       <!-- Seletor de Criptomoedas compacto -->
       <div class="flex-shrink-0">
