@@ -88,16 +88,13 @@ describe('Crypto API', () => {
     });
   });
 
-  describe('Multi-crypto support', () => {
-    it('should support all configured cryptocurrencies', () => {
+  describe('Multi-crypto support', () => {    it('should support all configured cryptocurrencies', () => {
       const cryptoIds = Object.keys(CRYPTO_CONFIGS);
       expect(cryptoIds).toContain('bitcoin');
       expect(cryptoIds).toContain('ethereum');
       expect(cryptoIds).toContain('solana');
-      expect(cryptoIds).toHaveLength(3);
-    });
-
-    it('should have consistent structure across all crypto configs', () => {
+      expect(cryptoIds).toHaveLength(7); // Updated to reflect all 7 cryptocurrencies
+    });    it('should have consistent structure across all crypto configs', () => {
       Object.values(CRYPTO_CONFIGS).forEach(config => {
         expect(config).toHaveProperty('id');
         expect(config).toHaveProperty('name');

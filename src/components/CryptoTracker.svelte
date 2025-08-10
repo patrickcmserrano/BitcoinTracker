@@ -6,6 +6,8 @@ import type { CryptoConfig, CryptoData } from '../lib/crypto-config';
 import { _ } from '../lib/i18n';
 import CandleChart from './CandleChart.svelte';
 import CryptoIcon from './CryptoIcon.svelte';
+import { selectNextCrypto, selectPreviousCrypto } from '../lib/crypto-store';
+import { setupSwipeGestures, isTouchDevice } from '../lib/swipe-gestures';
 
 // Props obrigatórias
 export let config: CryptoConfig;
@@ -36,6 +38,12 @@ let showChart = true;
 
 // Variável para rastrear o config anterior para detectar mudanças
 let previousConfigId: string | null = null;
+
+// Swipe gesture variables
+let swipeContainer: HTMLElement;
+let swipeCleanup: (() => void) | null = null;
+let isSwipeTransitioning = false;
+let swipeIndicator = '';
 
 // Reatividade: Reinicializa os dados quando o config da criptomoeda muda
 $: if (config && config.id !== previousConfigId) {
@@ -389,6 +397,33 @@ async function manualUpdate() {
   }
 }
 
+// Swipe gesture functions
+function handleSwipeNext() {
+  if (isSwipeTransitioning) return;
+  
+  isSwipeTransitioning = true;
+  swipeIndicator = 'next';
+  
+  setTimeout(() => {
+    selectNextCrypto();
+    isSwipeTransitioning = false;
+    swipeIndicator = '';
+  }, 150);
+}
+
+function handleSwipePrevious() {
+  if (isSwipeTransitioning) return;
+  
+  isSwipeTransitioning = true;
+  swipeIndicator = 'previous';
+  
+  setTimeout(() => {
+    selectPreviousCrypto();
+    isSwipeTransitioning = false;
+    swipeIndicator = '';
+  }, 150);
+}
+
 // Componente inicializado
 onMount(async () => {
   try {
@@ -415,12 +450,36 @@ onMount(async () => {
     
     // Iniciar contador visual para mostrar o tempo até a próxima atualização
     if (updateTimer) clearInterval(updateTimer);
-    
-    updateTimer = setInterval(() => {
+      updateTimer = setInterval(() => {
       updateTimeLeft();
     }, 1000);
     
     console.log('Contador regressivo iniciado');
+    
+    // Setup swipe gestures for touch devices
+    if (isTouchDevice() && swipeContainer) {
+      swipeCleanup = setupSwipeGestures(swipeContainer, {
+        onSwipeLeft: () => {
+          if (!isSwipeTransitioning) {
+            handleSwipeNext();
+          }
+        },
+        onSwipeRight: () => {
+          if (!isSwipeTransitioning) {
+            handleSwipePrevious();
+          }
+        },
+        onSwipeStart: () => {
+          swipeIndicator = '';
+        }
+      }, {
+        minSwipeDistance: 60,
+        maxSwipeTime: 400,
+        preventScroll: true
+      });
+      console.log('Swipe gestures configurados para', config.name);
+    }
+    
   } catch (error) {
     console.error(`Erro na inicialização do componente para ${config.name}:`, error);
     throw error;
@@ -440,11 +499,17 @@ onDestroy(() => {
     clearInterval(updateTimer);
     updateTimer = null;
   }
+  
+  // Cleanup swipe gestures
+  if (swipeCleanup) {
+    swipeCleanup();
+    swipeCleanup = null;
+  }
 });
 </script>
 
 <!-- Container principal responsivo com altura adaptável para viewport completo -->
-<div class="w-full h-full mx-auto px-2 py-1">
+<div class="w-full h-full mx-auto px-2 py-1" bind:this={swipeContainer}>
   <!-- Layout responsivo: lado a lado em telas grandes, empilhado em telas pequenas -->
   <div class="flex flex-col xl:flex-row gap-3 xl:items-stretch">
     <!-- Seção do Crypto Tracker (dados) -->
@@ -458,8 +523,7 @@ onDestroy(() => {
             <div class="h-full bg-primary-300 animate-progress"></div>
           </div>
         {/if}
-        
-        <!-- Header compacto -->
+          <!-- Header compacto -->
         <div class="text-center mb-2 relative">
           <h1 class="text-lg font-bold" style="color: var(--crypto-color)">
             {$_('crypto.tracker.title', { values: { name: config.name } })}
@@ -467,11 +531,10 @@ onDestroy(() => {
           <p class="text-xs text-gray-600 dark:text-gray-400">
             {$_(`crypto.${config.id}.description`)}
           </p>
-            <!-- Botão de atualização manual temático -->
-          <button 
+            <!-- Botão de atualização manual temático -->          <button 
             class="absolute right-0 top-0 p-1 btn-refresh transition-colors text-sm" 
             title="Atualizar dados manualmente" 
-            onclick={() => {
+            on:click={() => {
               console.log('Botão de atualização clicado');
               manualUpdate();
             }}
@@ -480,6 +543,15 @@ onDestroy(() => {
             <span class={updating ? "animate-spin" : ""}>⟳</span>
           </button>
         </div>
+
+        <!-- Swipe transition indicator -->
+        {#if isSwipeTransitioning}
+          <div class="swipe-indicator">
+            <div class="swipe-arrow {swipeIndicator}">
+              {swipeIndicator === 'next' ? '→' : '←'}
+            </div>
+          </div>
+        {/if}
 
         {#if loading}
           <div class="flex justify-center items-center py-4">
@@ -500,10 +572,9 @@ onDestroy(() => {
           
           <!-- Seletor de Timeframes compacto -->
           <div class="flex justify-center space-x-1 mb-2">
-            {#each timeframes as timeframe}
-              <button 
+            {#each timeframes as timeframe}              <button 
                 class="timeframe-btn-compact {activeTimeframe === timeframe.id ? 'active' : ''}"
-                onclick={() => changeTimeframe(timeframe.id)}
+                on:click={() => changeTimeframe(timeframe.id)}
                 title={$_(`bitcoin.timeframe${timeframe.id}Info`)}
               >
                 {timeframe.label}
@@ -874,10 +945,50 @@ onDestroy(() => {
       min-height: 650px;
     }
   }
-  
-  @media (min-height: 1200px) and (min-width: 1280px) {
+    @media (min-height: 1200px) and (min-width: 1280px) {
     :global(.xl\\:items-stretch) > * {
       min-height: 700px;
     }
+  }
+
+  /* Swipe gesture indicator styles */
+  .swipe-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+    pointer-events: none;
+  }
+  
+  .swipe-arrow {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--crypto-color, var(--color-primary-500));
+    animation: swipeIndicator 0.3s ease-in-out;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  @keyframes swipeIndicator {
+    0% {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(1);
+    }
+  }
+  
+  .swipe-arrow.next {
+    animation-direction: normal;
+  }
+  
+  .swipe-arrow.previous {
+    animation-direction: reverse;
   }
 </style>

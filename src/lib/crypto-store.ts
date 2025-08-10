@@ -1,6 +1,6 @@
-import { writable, derived } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import type { CryptoConfig, CryptoData } from './crypto-config';
-import { getDefaultCrypto } from './crypto-config';
+import { getDefaultCrypto, getAllCryptos } from './crypto-config';
 
 // Interface para o estado da aplicação
 interface AppState {
@@ -53,6 +53,21 @@ export const selectCrypto = (crypto: CryptoConfig) => {
     ...state,
     selectedCrypto: crypto
   }));
+};
+
+// Navigation functions for swipe gestures
+export const selectNextCrypto = () => {
+  const allCryptos = getAllCryptos();
+  const currentIndex = allCryptos.findIndex(crypto => crypto.id === get(selectedCrypto).id);
+  const nextIndex = (currentIndex + 1) % allCryptos.length;
+  selectCrypto(allCryptos[nextIndex]);
+};
+
+export const selectPreviousCrypto = () => {
+  const allCryptos = getAllCryptos();
+  const currentIndex = allCryptos.findIndex(crypto => crypto.id === get(selectedCrypto).id);
+  const previousIndex = currentIndex === 0 ? allCryptos.length - 1 : currentIndex - 1;
+  selectCrypto(allCryptos[previousIndex]);
 };
 
 export const setCryptoData = (cryptoId: string, data: CryptoData) => {

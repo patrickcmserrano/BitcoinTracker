@@ -6,9 +6,11 @@ import {
   selectCrypto, 
   setCryptoData, 
   setCryptoLoading, 
-  setCryptoError 
+  setCryptoError, 
+  selectNextCrypto, 
+  selectPreviousCrypto 
 } from './crypto-store';
-import { getDefaultCrypto, CRYPTO_CONFIGS } from './crypto-config';
+import { getDefaultCrypto, CRYPTO_CONFIGS, getAllCryptos } from './crypto-config';
 import { get } from 'svelte/store';
 
 describe('Crypto Store', () => {
@@ -205,6 +207,51 @@ describe('Crypto Store', () => {
       expect(state.errors.bitcoin).toBe('Bitcoin API error');
       expect(state.errors.ethereum).toBeNull();
       expect(state.errors.solana).toBe('Solana network issue');
+    });
+  });
+
+  describe('Navigation Functions', () => {
+    it('should navigate to next cryptocurrency in circular order', () => {
+      // Start with Bitcoin (default)
+      expect(get(selectedCrypto).id).toBe('bitcoin');
+      
+      // Navigate to next (Ethereum)
+      selectNextCrypto();
+      expect(get(selectedCrypto).id).toBe('ethereum');
+      
+      // Navigate to next (Solana)
+      selectNextCrypto();
+      expect(get(selectedCrypto).id).toBe('solana');
+    });
+
+    it('should navigate to previous cryptocurrency in circular order', () => {
+      // Start with Bitcoin (default)
+      expect(get(selectedCrypto).id).toBe('bitcoin');
+      
+      // Navigate to previous (should wrap to last crypto)
+      selectPreviousCrypto();
+      expect(get(selectedCrypto).id).toBe('usdtbrl'); // Last crypto in the list
+      
+      // Navigate to previous again
+      selectPreviousCrypto();
+      expect(get(selectedCrypto).id).toBe('trx');
+    });
+
+    it('should complete full circular navigation', () => {
+      const allCryptos = getAllCryptos();
+      
+      // Start with Bitcoin
+      expect(get(selectedCrypto).id).toBe('bitcoin');
+      
+      // Navigate through all cryptos
+      for (let i = 1; i < allCryptos.length; i++) {
+        selectNextCrypto();
+        expect(get(selectedCrypto).id).toBe(allCryptos[i].id);
+      }
+      
+      // One more navigation should wrap back to Bitcoin
+      selectNextCrypto();
+      expect(get(selectedCrypto).id).toBe('bitcoin');
     });
   });
 });
