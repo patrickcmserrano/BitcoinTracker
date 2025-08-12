@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lightweight Charts Debug</title>
+</head>
+<body>
+    <h1>Lightweight Charts API Test</h1>
+    <div id="output"></div>
+    
+    <script type="module">
+        import { createChart } from './node_modules/lightweight-charts/dist/lightweight-charts.production.mjs';
+        
+        console.log('Testing Lightweight Charts API...');
+        
+        // Create a temporary div element
+        const container = document.createElement('div');
+        container.style.width = '400px';
+        container.style.height = '300px';
+        container.style.border = '1px solid #ccc';
+        document.body.appendChild(container);
+        
+        try {
+            // Try to create a chart
+            const chart = createChart(container, {
+                width: 400,
+                height: 300
+            });
+            
+            console.log('Chart created successfully!');
+            console.log('Chart object:', chart);
+            
+            // Get all available methods
+            const allMethods = [];
+            let obj = chart;
+            while (obj && obj !== Object.prototype) {
+                allMethods.push(...Object.getOwnPropertyNames(obj).filter(name => typeof chart[name] === 'function'));
+                obj = Object.getPrototypeOf(obj);
+            }
+            
+            console.log('All chart methods:', [...new Set(allMethods)].sort());
+            
+            // Test different method names for adding series
+            const methodsToCheck = [
+                'addCandlestickSeries',
+                'addCandleSeries', 
+                'addSeries',
+                'addLineSeries',
+                'addAreaSeries'
+            ];
+            
+            methodsToCheck.forEach(method => {
+                const available = typeof chart[method] === 'function';
+                console.log(`${method}:`, available ? '✅ Available' : '❌ Not found');
+                document.getElementById('output').innerHTML += `<p>${method}: ${available ? '✅' : '❌'}</p>`;
+            });
+            
+            // Try to add a candlestick series
+            if (typeof chart.addCandlestickSeries === 'function') {
+                console.log('Attempting to add candlestick series...');
+                const series = chart.addCandlestickSeries({
+                    upColor: '#22c55e',
+                    downColor: '#ef4444',
+                    borderDownColor: '#ef4444',
+                    borderUpColor: '#22c55e',
+                    wickDownColor: '#ef4444',
+                    wickUpColor: '#22c55e'
+                });
+                
+                console.log('Candlestick series created:', series);
+                document.getElementById('output').innerHTML += '<p>✅ Candlestick series created successfully!</p>';
+                
+                // Test data format
+                const testData = [
+                    { time: Math.floor(Date.now() / 1000) - 3600, open: 100, high: 110, low: 90, close: 105 },
+                    { time: Math.floor(Date.now() / 1000) - 1800, open: 105, high: 115, low: 95, close: 108 },
+                    { time: Math.floor(Date.now() / 1000), open: 108, high: 120, low: 100, close: 112 }
+                ];
+                
+                series.setData(testData);
+                console.log('Test data set successfully!');
+                document.getElementById('output').innerHTML += '<p>✅ Test data loaded!</p>';
+            }
+            
+        } catch (error) {
+            console.error('Error testing Lightweight Charts:', error);
+            document.getElementById('output').innerHTML += `<p>❌ Error: ${error.message}</p>`;
+        }
+    </script>
+</body>
+</html>

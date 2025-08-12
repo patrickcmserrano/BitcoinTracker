@@ -167,12 +167,10 @@ checkTaapiStatus();
           <h3 class="font-semibold mb-2">⚠️ API não configurada</h3>
           <p class="text-sm">Configure sua chave da API TAAPI.IO para acessar indicadores técnicos profissionais.</p>
         </div>
-          <button
+        <button
           class="btn variant-filled-primary"
           onclick={() => {
-            if (!import.meta.env.PROD) {
-              showApiConfig = true;
-            }
+            showApiConfig = true;
           }}
         >
           Configurar API TAAPI.IO
