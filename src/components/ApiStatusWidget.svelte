@@ -28,6 +28,12 @@
       free: true
     },
     {
+      name: 'Binance Futures',
+      status: 'checking',
+      description: 'Funding Rate, Open Interest, LSR',
+      free: true
+    },
+    {
       name: 'Alternative.me',
       status: 'checking',
       description: 'Fear & Greed Index',
@@ -70,6 +76,28 @@
     try {
       const start = Date.now();
       const response = await fetch('https://api.binance.com/api/v3/ping', { 
+        signal: AbortSignal.timeout(8000),
+        mode: 'cors'
+      });
+      const latency = Date.now() - start;
+      
+      if (response.ok) {
+        return { status: 'online', latency };
+      } else {
+        return { status: 'offline', error: `HTTP ${response.status}` };
+      }
+    } catch (error) {
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return { status: 'offline', error: 'CORS ou rede bloqueada' };
+      }
+      return { status: 'offline', error: error instanceof Error ? error.message : 'Timeout' };
+    }
+  }
+  
+  async function checkBinanceFuturesHealth(): Promise<{ status: 'online' | 'offline', latency?: number, error?: string }> {
+    try {
+      const start = Date.now();
+      const response = await fetch('https://fapi.binance.com/fapi/v1/ping', { 
         signal: AbortSignal.timeout(8000),
         mode: 'cors'
       });
@@ -143,13 +171,14 @@
     loading = true;
     
     // Check all APIs in parallel
-    const [binanceResult, altMeResult, coinGeckoResult] = await Promise.all([
+    const [binanceResult, futuresResult, altMeResult, coinGeckoResult] = await Promise.all([
       checkBinanceHealth(),
+      checkBinanceFuturesHealth(),
       checkAlternativeMeHealth(),
       checkCoinGeckoHealth()
     ]);
     
-    console.log('API Results:', { binanceResult, altMeResult, coinGeckoResult });
+    console.log('API Results:', { binanceResult, futuresResult, altMeResult, coinGeckoResult });
     
     // Update all statuses
     apiStatuses = [
@@ -166,24 +195,33 @@
         name: apiStatuses[1].name,
         description: apiStatuses[1].description,
         free: apiStatuses[1].free,
-        status: altMeResult.status,
-        latency: altMeResult.latency,
-        error: altMeResult.status === 'online' ? undefined : altMeResult.error,
+        status: futuresResult.status,
+        latency: futuresResult.latency,
+        error: futuresResult.status === 'online' ? undefined : futuresResult.error,
         lastCheck: new Date()
       },
       {
         name: apiStatuses[2].name,
         description: apiStatuses[2].description,
         free: apiStatuses[2].free,
-        status: coinGeckoResult.status,
-        latency: coinGeckoResult.latency,
-        error: coinGeckoResult.status === 'online' ? undefined : coinGeckoResult.error,
+        status: altMeResult.status,
+        latency: altMeResult.latency,
+        error: altMeResult.status === 'online' ? undefined : altMeResult.error,
         lastCheck: new Date()
       },
       {
         name: apiStatuses[3].name,
         description: apiStatuses[3].description,
         free: apiStatuses[3].free,
+        status: coinGeckoResult.status,
+        latency: coinGeckoResult.latency,
+        error: coinGeckoResult.status === 'online' ? undefined : coinGeckoResult.error,
+        lastCheck: new Date()
+      },
+      {
+        name: apiStatuses[4].name,
+        description: apiStatuses[4].description,
+        free: apiStatuses[4].free,
         status: 'online',
         latency: undefined,
         error: undefined,

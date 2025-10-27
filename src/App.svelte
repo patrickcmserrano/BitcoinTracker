@@ -6,6 +6,7 @@
   import MarketIndicators from './components/MarketIndicators.svelte';
   import TechnicalIndicators from './components/TechnicalIndicators.svelte';
   import ApiStatusWidget from './components/ApiStatusWidget.svelte';
+  import BinanceFuturesWidget from './components/BinanceFuturesWidget.svelte';
   // import TaapiIndicators from './components/TaapiIndicators.svelte'; // Removido temporariamente
   import { _ } from './lib/i18n';
   import { setupI18n } from './lib/i18n';
@@ -76,6 +77,14 @@
       <!-- Indicadores de Mercado (Fear & Greed, BTC Dominance, etc) - Abaixo do gráfico -->
       <div class="flex-shrink-0">
         <MarketIndicators />
+      </div>
+      
+      <!-- Dados de Futures da Binance (Funding Rate, Open Interest, LSR) -->
+      <div class="flex-shrink-0">
+        <BinanceFuturesWidget 
+          symbol={$selectedCrypto.binanceSymbol}
+          updateInterval={60000}
+        />
       </div>
       
       <!-- Indicadores Técnicos (MACD, RSI, Stochastic, MAs) -->
