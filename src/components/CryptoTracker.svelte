@@ -31,7 +31,7 @@ export let lastATRCheck: Date | null = null; // Para controlar quando foi a últ
 export let nextATRCheck: Date | null = null; // Para mostrar quando será a próxima verificação de ATR
 
 // Estado para controlar o timeframe ativo
-let activeTimeframe = '1h'; // Valor padrão - 1 hora
+export let activeTimeframe = '1h'; // Valor padrão - 1 hora, agora exportado
 
 // Estado para controlar a visibilidade do gráfico
 let showChart = true;
@@ -54,7 +54,8 @@ $: if (config && config.id !== previousConfigId) {
 
 // Lista de timeframes disponíveis
 const timeframes = [
-  { id: '10m', label: '10m' },
+  { id: '5m', label: '5m' },
+  { id: '15m', label: '15m' },
   { id: '1h', label: '1h' },
   { id: '4h', label: '4h' },
   { id: '1d', label: '1d' },
@@ -71,14 +72,15 @@ function changeTimeframe(timeframe: string) {
 // Função para mapear timeframe do rastreador para intervalo do gráfico
 function mapTimeframeToInterval(timeframe: string): string {
   const timeframeMap: { [key: string]: string } = {
-    '10m': '5m',   // Rastreador 10m → Gráfico 5m
+    '5m': '5m',    // 5m e 5m (mantém igual)
+    '15m': '15m',  // 15m e 15m (mantém igual)
     '1h': '1h',    // 1h e 1h (mantém igual)
     '4h': '4h',    // 4h e 4h (mantém igual)
     '1d': '1d',    // 1d e 1d (mantém igual)
     '1w': '1w'     // 1w e 1w (mantém igual)
   };
   
-  return timeframeMap[timeframe] || '1m';
+  return timeframeMap[timeframe] || '1h';
 }
 
 // Função pública para forçar atualização de ATR (chamada pelo componente pai)
@@ -93,12 +95,19 @@ function getTimeframeData(timeframe: string) {
   // Mapeia o timeframe para as propriedades adequadas no objeto de dados
   // Cada objeto contém o valor de amplitude, alto e baixo para o timeframe
   const timeframeMap = {
-    '10m': {
-      amplitude: data.amplitude10m,
+    '5m': {
+      amplitude: data.amplitude10m, // Usando dados de 10m como fallback
       highPrice: data.highPrice10m,
       lowPrice: data.lowPrice10m,
       volume: data.volume10m,
       percentChange: data.percentChange10m
+    },
+    '15m': {
+      amplitude: data.amplitude1h, // Usando dados de 1h como aproximação
+      highPrice: data.highPrice1h,
+      lowPrice: data.lowPrice1h,
+      volume: data.volume1h,
+      percentChange: data.percentChange1h
     },
     '1h': {
       amplitude: data.amplitude1h,
@@ -139,9 +148,13 @@ const ATR_CHECK_INTERVAL = 300000; // 5 minutos para verificar ATR (mais conserv
 
 // Valores de amplitude para cada timeframe
 const AMPLITUDE_THRESHOLDS = {
-  '10m': {
-    MEDIUM: 150,
-    HIGH: 300
+  '5m': {
+    MEDIUM: 100,
+    HIGH: 200
+  },
+  '15m': {
+    MEDIUM: 200,
+    HIGH: 400
   },
   '1h': {
     MEDIUM: 450,
@@ -629,9 +642,13 @@ onDestroy(() => {
             {/if}
             
             <!-- Informações específicas por timeframe compactas -->
-            {#if activeTimeframe === '10m'}
+            {#if activeTimeframe === '5m'}
               <div class="text-xs text-center mt-1 mb-1 text-gray-600 dark:text-gray-400">
-                {$_('bitcoin.timeframe10mInfo')}
+                Timeframe de 5 minutos - Ideal para análise de curto prazo
+              </div>
+            {:else if activeTimeframe === '15m'}
+              <div class="text-xs text-center mt-1 mb-1 text-gray-600 dark:text-gray-400">
+                Timeframe de 15 minutos - Análise de curto a médio prazo
               </div>
             {:else if activeTimeframe === '1h'}
               <div class="text-xs text-center mt-1 mb-1 text-gray-600 dark:text-gray-400">
@@ -671,6 +688,9 @@ onDestroy(() => {
                 </span>
               </div>
             {/if}
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
+              <span class="mr-1">🔗</span>Fonte: Binance API (gratuita)
+            </div>
           </div>
         {/if}
       </div>

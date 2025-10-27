@@ -3,6 +3,9 @@
   import ThemeToggle from './components/ThemeToggle.svelte';
   import LanguageSelector from './components/LanguageSelector.svelte';
   import CryptoSelector from './components/CryptoSelector.svelte';  import CryptoTracker from './components/CryptoTracker.svelte';
+  import MarketIndicators from './components/MarketIndicators.svelte';
+  import TechnicalIndicators from './components/TechnicalIndicators.svelte';
+  import ApiStatusWidget from './components/ApiStatusWidget.svelte';
   // import TaapiIndicators from './components/TaapiIndicators.svelte'; // Removido temporariamente
   import { _ } from './lib/i18n';
   import { setupI18n } from './lib/i18n';
@@ -11,6 +14,9 @@
   import { initCryptoIcons } from './lib/crypto-icons';
   
   setupI18n();
+  
+  // Estado para controlar timeframe para indicadores técnicos
+  let currentTimeframe = '1h';
   
   // Estados compartilhados derivados das stores
   let cryptoTrackerRef: CryptoTracker;
@@ -63,7 +69,26 @@
           config={$selectedCrypto}
           bind:data={currentData}
           bind:loading={loading}
+          bind:activeTimeframe={currentTimeframe}
         />
+      </div>
+      
+      <!-- Indicadores de Mercado (Fear & Greed, BTC Dominance, etc) - Abaixo do gráfico -->
+      <div class="flex-shrink-0">
+        <MarketIndicators />
+      </div>
+      
+      <!-- Indicadores Técnicos (MACD, RSI, Stochastic, MAs) -->
+      <div class="flex-shrink-0">
+        <TechnicalIndicators 
+          symbol={$selectedCrypto.binanceSymbol}
+          interval={currentTimeframe}
+        />
+      </div>
+      
+      <!-- Status das APIs (Health Check) -->
+      <div class="flex-shrink-0">
+        <ApiStatusWidget />
       </div>
     </div>
     

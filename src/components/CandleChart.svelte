@@ -1,6 +1,8 @@
 <script lang="ts">
 import { onMount, onDestroy } from 'svelte';
-import { createChart, ColorType, CandlestickSeries, type IChartApi, type ISeriesApi, type CandlestickData, type Time, type LogicalRange } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, LineSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type LineData, type HistogramData, type Time, type LogicalRange } from 'lightweight-charts';
+import { calculateIndicatorSeries, type IndicatorSeries } from '../lib/technical-indicators';
+import { getBinanceKlines } from '../lib/api';
 
 // Props
 export let symbol = 'BTCUSDT';
@@ -12,10 +14,30 @@ export let onTimeframeChange: ((timeframe: string) => void) | null = null; // Ca
 let chartContainer: HTMLDivElement;
 let chart: IChartApi | null = null;
 let candleSeries: ISeriesApi<'Candlestick'> | null = null;
+let macdHistogramSeries: ISeriesApi<'Histogram'> | null = null;
+let macdLineSeries: ISeriesApi<'Line'> | null = null;
+let macdSignalSeries: ISeriesApi<'Line'> | null = null;
+let sma20Series: ISeriesApi<'Line'> | null = null;
+let sma50Series: ISeriesApi<'Line'> | null = null;
+let ema9Series: ISeriesApi<'Line'> | null = null;
+let ema21Series: ISeriesApi<'Line'> | null = null;
+let bollingerUpperSeries: ISeriesApi<'Line'> | null = null;
+let bollingerMiddleSeries: ISeriesApi<'Line'> | null = null;
+let bollingerLowerSeries: ISeriesApi<'Line'> | null = null;
 let ws: WebSocket | null = null;
 let lastCandle: CandlestickData | null = null;
 let connectionAttempts = 0;
 const maxReconnectAttempts = 5;
+let isDestroyed = false; // Flag para rastrear se o componente foi destruído
+let reconnectTimeout: number | null = null; // Timeout para reconexão
+let isConnecting = false; // Flag para evitar múltiplas conexões simultâneas
+
+// Estados de visibilidade dos indicadores
+let showSMA = false;
+let showEMA = false;
+let showBollinger = false;
+let showMACD = false;
+let macdReady = false; // Flag para indicar quando o MACD está pronto
 
 // Estado de maximização
 let isMaximized = false;
@@ -30,7 +52,8 @@ let previousInterval = interval;
 
 // Lista de timeframes disponíveis (mesmo do rastreador)
 const timeframes = [
-  { id: '10m', label: '10m' },
+  { id: '5m', label: '5m' },
+  { id: '15m', label: '15m' },
   { id: '1h', label: '1h' },
   { id: '4h', label: '4h' },
   { id: '1d', label: '1d' },
@@ -40,14 +63,15 @@ const timeframes = [
 // Função para mapear timeframe do rastreador para intervalo do gráfico
 function mapTimeframeToInterval(timeframe: string): string {
   const timeframeMap: { [key: string]: string } = {
-    '10m': '5m',   // Rastreador 10m → Gráfico 5m
+    '5m': '5m',    // 5m e 5m (mantém igual)
+    '15m': '15m',  // 15m e 15m (mantém igual)
     '1h': '1h',    // 1h e 1h (mantém igual)
     '4h': '4h',    // 4h e 4h (mantém igual)
     '1d': '1d',    // 1d e 1d (mantém igual)
     '1w': '1w'     // 1w e 1w (mantém igual)
   };
   
-  return timeframeMap[timeframe] || '1m';
+  return timeframeMap[timeframe] || '1h';
 }
 
 // Função para alterar o timeframe quando em modo maximizado
@@ -137,11 +161,12 @@ function initChart(container?: HTMLDivElement) {
     },
     crosshair: {
       mode: 1,
-    },    rightPriceScale: {
+    },
+    rightPriceScale: {
       borderColor: colors.borderColor,
       scaleMargins: {
-        top: isMaximized ? 0.02 : 0.1,
-        bottom: isMaximized ? 0.02 : 0.1,
+        top: 0.1,
+        bottom: showMACD ? 0.4 : 0.1, // Deixar espaço para MACD se ativo
       },
     },
     timeScale: {
@@ -163,7 +188,7 @@ function initChart(container?: HTMLDivElement) {
 
   chart = createChart(targetContainer, chartOptions);
 
-  // Adicionar série de candles
+  // Adicionar série de candles no price scale principal
   candleSeries = chart.addSeries(CandlestickSeries, {
     upColor: '#22c55e',
     downColor: '#ef4444',
@@ -171,7 +196,13 @@ function initChart(container?: HTMLDivElement) {
     borderUpColor: '#22c55e',
     wickDownColor: '#ef4444',
     wickUpColor: '#22c55e',
+    priceScaleId: 'right',
   });
+
+  // Se MACD estiver ativo, adicionar as séries no mesmo gráfico
+  if (showMACD) {
+    addMacdSeries();
+  }
 
   // Responsividade - observar redimensionamento dos containers
   if (resizeObserver) {
@@ -191,6 +222,381 @@ function initChart(container?: HTMLDivElement) {
   if (targetContainer) {
     resizeObserver.observe(targetContainer);
   }
+}
+
+function addMacdSeries() {
+  if (!chart) return;
+
+  // Adicionar série de histograma MACD PRIMEIRO para criar o price scale 'macd'
+  macdHistogramSeries = chart.addSeries(HistogramSeries, {
+    color: '#26a69a',
+    priceFormat: {
+      type: 'volume',
+    },
+    priceScaleId: 'macd',
+  });
+
+  // Adicionar linha MACD
+  macdLineSeries = chart.addSeries(LineSeries, {
+    color: '#2196F3',
+    lineWidth: 2,
+    priceScaleId: 'macd',
+  });
+
+  // Adicionar linha Signal
+  macdSignalSeries = chart.addSeries(LineSeries, {
+    color: '#FF6D00',
+    lineWidth: 2,
+    priceScaleId: 'macd',
+  });
+
+  // DEPOIS de criar as séries, configurar o price scale para posicionar o MACD na parte inferior
+  chart.priceScale('macd').applyOptions({
+    scaleMargins: {
+      top: 0.7, // MACD ocupa os 30% inferiores do gráfico
+      bottom: 0,
+    },
+  });
+
+  macdReady = true;
+}
+
+function removeMacdSeries() {
+  if (!chart) return;
+
+  if (macdHistogramSeries) {
+    chart.removeSeries(macdHistogramSeries);
+    macdHistogramSeries = null;
+  }
+  if (macdLineSeries) {
+    chart.removeSeries(macdLineSeries);
+    macdLineSeries = null;
+  }
+  if (macdSignalSeries) {
+    chart.removeSeries(macdSignalSeries);
+    macdSignalSeries = null;
+  }
+  
+  macdReady = false;
+  
+  // Ajustar margens do price scale principal
+  if (chart) {
+    chart.applyOptions({
+      rightPriceScale: {
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
+      },
+    });
+  }
+}
+
+/**
+ * Adiciona ou atualiza séries de indicadores técnicos
+ */
+async function updateIndicatorSeries() {
+  if (!chart || !candleSeries || isDestroyed) return;
+
+  try {
+    // Buscar dados OHLCV
+    const klines = await getBinanceKlines(symbol, interval, 200);
+    
+    // Verificar se o componente foi destruído durante a chamada assíncrona
+    if (isDestroyed || !chart) return;
+    
+    if (!klines || klines.length === 0) return;
+
+    // Preparar dados OHLCV
+    const ohlcvData = {
+      open: klines.map(k => parseFloat(k[1])),
+      high: klines.map(k => parseFloat(k[2])),
+      low: klines.map(k => parseFloat(k[3])),
+      close: klines.map(k => parseFloat(k[4])),
+      volume: klines.map(k => parseFloat(k[5]))
+    };
+
+    // Calcular indicadores
+    const indicators = calculateIndicatorSeries(ohlcvData);
+
+    // Preparar timestamps
+    const times = klines.map(k => Math.floor(k[0] / 1000) as Time);
+
+    // SMA 20 e 50
+    if (showSMA) {
+      if (!sma20Series) {
+        sma20Series = chart.addSeries(LineSeries, {
+          color: '#3b82f6', // blue-500
+          lineWidth: 2,
+          title: 'SMA 20',
+          priceLineVisible: false,
+        });
+      }
+      if (!sma50Series) {
+        sma50Series = chart.addSeries(LineSeries, {
+          color: '#8b5cf6', // violet-500
+          lineWidth: 2,
+          title: 'SMA 50',
+          priceLineVisible: false,
+        });
+      }
+
+      // Preencher SMA20 (offset para alinhar com os dados)
+      const sma20Data: LineData[] = [];
+      const sma20Offset = times.length - indicators.sma20.length;
+      indicators.sma20.forEach((value, i) => {
+        if (value && times[i + sma20Offset]) {
+          sma20Data.push({ time: times[i + sma20Offset], value });
+        }
+      });
+      
+      // Verificar se o componente ainda está ativo antes de atualizar
+      if (isDestroyed || !chart) return;
+      
+      if (sma20Series) sma20Series.setData(sma20Data);
+
+      // Preencher SMA50
+      const sma50Data: LineData[] = [];
+      const sma50Offset = times.length - indicators.sma50.length;
+      indicators.sma50.forEach((value, i) => {
+        if (value && times[i + sma50Offset]) {
+          sma50Data.push({ time: times[i + sma50Offset], value });
+        }
+      });
+      
+      if (isDestroyed || !chart) return;
+      
+      if (sma50Series) sma50Series.setData(sma50Data);
+    } else {
+      if (sma20Series) {
+        chart.removeSeries(sma20Series);
+        sma20Series = null;
+      }
+      if (sma50Series) {
+        chart.removeSeries(sma50Series);
+        sma50Series = null;
+      }
+    }
+
+    // EMA 9 e 21
+    if (showEMA) {
+      if (!ema9Series) {
+        ema9Series = chart.addSeries(LineSeries, {
+          color: '#10b981', // green-500
+          lineWidth: 2,
+          title: 'EMA 9',
+          priceLineVisible: false,
+        });
+      }
+      if (!ema21Series) {
+        ema21Series = chart.addSeries(LineSeries, {
+          color: '#f59e0b', // amber-500
+          lineWidth: 2,
+          title: 'EMA 21',
+          priceLineVisible: false,
+        });
+      }
+
+      const ema9Data: LineData[] = [];
+      const ema9Offset = times.length - indicators.ema9.length;
+      indicators.ema9.forEach((value, i) => {
+        if (value && times[i + ema9Offset]) {
+          ema9Data.push({ time: times[i + ema9Offset], value });
+        }
+      });
+      if (ema9Series) ema9Series.setData(ema9Data);
+
+      const ema21Data: LineData[] = [];
+      const ema21Offset = times.length - indicators.ema21.length;
+      indicators.ema21.forEach((value, i) => {
+        if (value && times[i + ema21Offset]) {
+          ema21Data.push({ time: times[i + ema21Offset], value });
+        }
+      });
+      if (ema21Series) ema21Series.setData(ema21Data);
+    } else {
+      if (ema9Series) {
+        chart.removeSeries(ema9Series);
+        ema9Series = null;
+      }
+      if (ema21Series) {
+        chart.removeSeries(ema21Series);
+        ema21Series = null;
+      }
+    }
+
+    // Bandas de Bollinger
+    if (showBollinger) {
+      if (!bollingerUpperSeries) {
+        bollingerUpperSeries = chart.addSeries(LineSeries, {
+          color: '#ef4444', // red-500
+          lineWidth: 1,
+          title: 'BB Upper',
+          priceLineVisible: false,
+        });
+      }
+      if (!bollingerMiddleSeries) {
+        bollingerMiddleSeries = chart.addSeries(LineSeries, {
+          color: '#6b7280', // gray-500
+          lineWidth: 1,
+          lineStyle: 2, // dashed
+          title: 'BB Middle',
+          priceLineVisible: false,
+        });
+      }
+      if (!bollingerLowerSeries) {
+        bollingerLowerSeries = chart.addSeries(LineSeries, {
+          color: '#22c55e', // green-500
+          lineWidth: 1,
+          title: 'BB Lower',
+          priceLineVisible: false,
+        });
+      }
+
+      const bbOffset = times.length - indicators.bollingerUpper.length;
+
+      const bbUpperData: LineData[] = [];
+      indicators.bollingerUpper.forEach((value, i) => {
+        if (value && times[i + bbOffset]) {
+          bbUpperData.push({ time: times[i + bbOffset], value });
+        }
+      });
+      if (bollingerUpperSeries) bollingerUpperSeries.setData(bbUpperData);
+
+      const bbMiddleData: LineData[] = [];
+      indicators.bollingerMiddle.forEach((value, i) => {
+        if (value && times[i + bbOffset]) {
+          bbMiddleData.push({ time: times[i + bbOffset], value });
+        }
+      });
+      if (bollingerMiddleSeries) bollingerMiddleSeries.setData(bbMiddleData);
+
+      const bbLowerData: LineData[] = [];
+      indicators.bollingerLower.forEach((value, i) => {
+        if (value && times[i + bbOffset]) {
+          bbLowerData.push({ time: times[i + bbOffset], value });
+        }
+      });
+      if (bollingerLowerSeries) bollingerLowerSeries.setData(bbLowerData);
+    } else {
+      if (bollingerUpperSeries) {
+        chart.removeSeries(bollingerUpperSeries);
+        bollingerUpperSeries = null;
+      }
+      if (bollingerMiddleSeries) {
+        chart.removeSeries(bollingerMiddleSeries);
+        bollingerMiddleSeries = null;
+      }
+      if (bollingerLowerSeries) {
+        chart.removeSeries(bollingerLowerSeries);
+        bollingerLowerSeries = null;
+      }
+    }
+
+  } catch (error) {
+    console.error('Erro ao atualizar indicadores:', error);
+  }
+}
+
+/**
+ * Atualiza o gráfico MACD (agora no mesmo gráfico principal)
+ */
+async function updateMacdChart() {
+  if (!chart || !macdHistogramSeries || isDestroyed) return;
+
+  try {
+    const klines = await getBinanceKlines(symbol, interval, 200);
+    
+    // Verificar se o componente foi destruído durante a chamada assíncrona
+    if (isDestroyed || !chart || !macdHistogramSeries) return;
+    
+    if (!klines || klines.length === 0) return;
+
+    const ohlcvData = {
+      open: klines.map(k => parseFloat(k[1])),
+      high: klines.map(k => parseFloat(k[2])),
+      low: klines.map(k => parseFloat(k[3])),
+      close: klines.map(k => parseFloat(k[4])),
+      volume: klines.map(k => parseFloat(k[5]))
+    };
+
+    const indicators = calculateIndicatorSeries(ohlcvData);
+    const times = klines.map(k => Math.floor(k[0] / 1000) as Time);
+
+    // MACD Histogram
+    const histogramData: HistogramData[] = [];
+    const macdLineData: LineData[] = [];
+    const signalLineData: LineData[] = [];
+    
+    const macdOffset = times.length - indicators.macdHistogram.length;
+    
+    indicators.macdHistogram.forEach((value, i) => {
+      if (value !== undefined && times[i + macdOffset]) {
+        const time = times[i + macdOffset];
+        histogramData.push({
+          time,
+          value,
+          color: value >= 0 ? '#26a69a' : '#ef5350'
+        });
+
+        // Adicionar linhas MACD e Signal
+        if (indicators.macdLine[i] !== undefined) {
+          macdLineData.push({
+            time,
+            value: indicators.macdLine[i]!
+          });
+        }
+        
+        if (indicators.macdSignal[i] !== undefined) {
+          signalLineData.push({
+            time,
+            value: indicators.macdSignal[i]!
+          });
+        }
+      }
+    });
+
+    // Verificar novamente antes de atualizar as séries
+    if (isDestroyed || !chart) return;
+    
+    if (macdHistogramSeries) macdHistogramSeries.setData(histogramData);
+    if (macdLineSeries) macdLineSeries.setData(macdLineData);
+    if (macdSignalSeries) macdSignalSeries.setData(signalLineData);
+
+    // Marcar MACD como pronto
+    macdReady = true;
+
+  } catch (error) {
+    console.error('Erro ao atualizar MACD:', error);
+    macdReady = false;
+  }
+}
+
+// Observar mudanças nos estados de visibilidade
+$: if (chart && (showSMA || showEMA || showBollinger)) {
+  updateIndicatorSeries();
+} else if (chart && !showSMA && !showEMA && !showBollinger) {
+  // Remover todas as séries de indicadores
+  if (sma20Series) { chart.removeSeries(sma20Series); sma20Series = null; }
+  if (sma50Series) { chart.removeSeries(sma50Series); sma50Series = null; }
+  if (ema9Series) { chart.removeSeries(ema9Series); ema9Series = null; }
+  if (ema21Series) { chart.removeSeries(ema21Series); ema21Series = null; }
+  if (bollingerUpperSeries) { chart.removeSeries(bollingerUpperSeries); bollingerUpperSeries = null; }
+  if (bollingerMiddleSeries) { chart.removeSeries(bollingerMiddleSeries); bollingerMiddleSeries = null; }
+  if (bollingerLowerSeries) { chart.removeSeries(bollingerLowerSeries); bollingerLowerSeries = null; }
+}
+
+// Observar mudança no estado do MACD
+$: if (showMACD && chart) {
+  macdReady = false; // Reset da flag
+  // Adicionar séries MACD se ainda não existem
+  if (!macdHistogramSeries) {
+    addMacdSeries();
+    updateMacdChart();
+  }
+} else if (!showMACD && chart) {
+  // Remover séries MACD
+  removeMacdSeries();
 }
 
 async function loadHistoricalData() {
@@ -237,44 +643,112 @@ async function loadHistoricalData() {
   }
 }
 
-function connectWebSocket() {
-  if (ws) {
-    ws.close();
+function disconnectWebSocket() {
+  // Limpar timeout de reconexão se existir
+  if (reconnectTimeout !== null) {
+    clearTimeout(reconnectTimeout);
+    reconnectTimeout = null;
   }
+  
+  // Fechar conexão existente
+  if (ws) {
+    // Remover event listeners antes de fechar
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    
+    // Fechar conexão se não estiver já fechada
+    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+      ws.close();
+    }
+    
+    ws = null;
+  }
+  
+  isConnecting = false;
+}
+
+function connectWebSocket() {
+  // Não conectar se o componente foi destruído, já está conectando, ou não há gráfico
+  if (isDestroyed || isConnecting || !chart) {
+    console.log('Skipping WebSocket connection:', { isDestroyed, isConnecting, hasChart: !!chart });
+    return;
+  }
+
+  // Marcar como conectando
+  isConnecting = true;
+  
+  // Desconectar WebSocket existente
+  disconnectWebSocket();
 
   const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`;
   console.log(`Connecting to WebSocket: ${wsUrl}`);
-  ws = new WebSocket(wsUrl);
+  
+  try {
+    ws = new WebSocket(wsUrl);
 
-  ws.onopen = () => {
-    console.log(`WebSocket connected for ${symbol} ${interval}`);
-    connectionAttempts = 0;
-  };
+    ws.onopen = () => {
+      // Verificar se o componente ainda está ativo
+      if (isDestroyed) {
+        ws?.close();
+        return;
+      }
+      console.log(`WebSocket connected for ${symbol} ${interval}`);
+      connectionAttempts = 0;
+      isConnecting = false;
+    };
 
-  ws.onmessage = (event: MessageEvent) => {
-    const data = JSON.parse(event.data);
-    handleKlineData(data);
-  };
+    ws.onmessage = (event: MessageEvent) => {
+      // Ignorar mensagens se o componente foi destruído
+      if (isDestroyed) return;
+      const data = JSON.parse(event.data);
+      handleKlineData(data);
+    };
 
-  ws.onclose = () => {
-    console.log('WebSocket desconectado');
-    
-    // Tentar reconectar se não exceder o limite
-    if (connectionAttempts < maxReconnectAttempts) {
-      connectionAttempts++;
-      console.log(`Tentativa de reconexão ${connectionAttempts}/${maxReconnectAttempts}`);
-      setTimeout(() => {
-        connectWebSocket();
-      }, 3000); // Esperar 3 segundos antes de reconectar
-    }
-  };
+    ws.onclose = (event) => {
+      console.log(`WebSocket desconectado (code: ${event.code}, reason: ${event.reason})`);
+      isConnecting = false;
+      
+      // Não reconectar se o componente está sendo destruído
+      if (isDestroyed) {
+        return;
+      }
+      
+      // Tentar reconectar se não exceder o limite e o fechamento não foi intencional
+      // Código 1000 é fechamento normal, não precisa reconectar
+      if (connectionAttempts < maxReconnectAttempts && event.code !== 1000) {
+        connectionAttempts++;
+        console.log(`Tentativa de reconexão ${connectionAttempts}/${maxReconnectAttempts}`);
+        
+        // Usar timeout exponencial: 2s, 4s, 8s, 16s, 32s
+        const delay = Math.min(2000 * Math.pow(2, connectionAttempts - 1), 32000);
+        
+        reconnectTimeout = window.setTimeout(() => {
+          // Verificar novamente antes de reconectar
+          if (!isDestroyed && chart) {
+            connectWebSocket();
+          }
+        }, delay);
+      }
+    };
 
-  ws.onerror = (error: Event) => {
-    console.error('Erro no WebSocket:', error);
-  };
+    ws.onerror = (error: Event) => {
+      console.error('Erro no WebSocket:', error);
+      isConnecting = false;
+    };
+  } catch (error) {
+    console.error('Erro ao criar WebSocket:', error);
+    isConnecting = false;
+  }
 }
 
 function handleKlineData(data: any) {
+  // Verificar se o componente foi destruído
+  if (isDestroyed || !chart || !candleSeries) {
+    return;
+  }
+
   const kline = data.k;
   if (!kline) return;
 
@@ -305,11 +779,8 @@ function handleKlineData(data: any) {
 function reinitializeChart() {
   console.log(`Reinitializing chart for ${symbol} with interval ${interval}`);
   
-  // Fechar WebSocket atual
-  if (ws) {
-    ws.close();
-    ws = null;
-  }
+  // Desconectar WebSocket atual de forma limpa
+  disconnectWebSocket();
   
   // Limpar dados do gráfico atual
   if (candleSeries && chart) {
@@ -320,8 +791,13 @@ function reinitializeChart() {
   lastCandle = null;
   connectionAttempts = 0;
   
-  // Recarregar dados históricos e reconectar WebSocket
-  loadHistoricalData();
+  // Aguardar um pouco antes de recarregar para garantir que o WebSocket foi fechado
+  setTimeout(() => {
+    if (!isDestroyed) {
+      // Recarregar dados históricos e reconectar WebSocket
+      loadHistoricalData();
+    }
+  }, 500);
 }
 
 // Função para salvar o estado atual do gráfico
@@ -370,8 +846,15 @@ function restoreChartState() {
 
 // Função para maximizar/minimizar o gráfico
 function maximizeChart() {
+  // Marcar como destruído temporariamente para prevenir atualizações durante a transição
+  const wasDestroyed = isDestroyed;
+  isDestroyed = true;
+  
   // Salvar estado atual antes da transição
   saveChartState();
+  
+  // Desconectar WebSocket antes de alterar o layout
+  disconnectWebSocket();
   
   // Alterar estado de maximização
   isMaximized = !isMaximized;
@@ -381,22 +864,38 @@ function maximizeChart() {
     chart.remove();
     chart = null;
     candleSeries = null;
+    // Limpar séries MACD também
+    macdHistogramSeries = null;
+    macdLineSeries = null;
+    macdSignalSeries = null;
   }
   
   // Aguardar um frame para que o DOM seja atualizado
   setTimeout(() => {
+    if (wasDestroyed) return; // Se realmente foi destruído, não recriar
+    
     const container = isMaximized ? maximizedContainer : chartContainer;
     if (container) {
+      // Restaurar flag isDestroyed
+      isDestroyed = false;
+      
       // Recriar gráfico no novo container
       initChart(container);
       
       // Restaurar dados e configurações
       restoreChartState();
       
-      // Reestabelecer WebSocket se necessário
-      if (symbol && interval) {
-        connectWebSocket();
+      // Se MACD estava ativo, atualizar
+      if (showMACD) {
+        updateMacdChart();
       }
+      
+      // Reconectar WebSocket após um pequeno delay
+      setTimeout(() => {
+        if (symbol && interval && !isDestroyed && chart) {
+          connectWebSocket();
+        }
+      }, 300);
     }
   }, 100);
 }
@@ -417,6 +916,7 @@ $: if ((symbol !== previousSymbol || interval !== previousInterval) && chart) {
 }
 
 onMount(() => {
+  isDestroyed = false; // Reset da flag ao montar
   initChart();
   loadHistoricalData();
   
@@ -451,32 +951,86 @@ onMount(() => {
 });
 
 onDestroy(() => {
-  if (ws) {
-    ws.close();
-  }
+  // Marcar componente como destruído
+  isDestroyed = true;
+  
+  // Desconectar WebSocket de forma limpa
+  disconnectWebSocket();
+  
+  // Remover gráfico (agora é apenas um)
   if (chart) {
     chart.remove();
+    chart = null;
   }
+  
+  // Desconectar observer
   if (resizeObserver) {
     resizeObserver.disconnect();
+    resizeObserver = null;
   }
+  
+  // Limpar séries
+  candleSeries = null;
+  macdHistogramSeries = null;
+  macdLineSeries = null;
+  macdSignalSeries = null;
+  macdSignalSeries = null;
+  sma20Series = null;
+  sma50Series = null;
+  ema9Series = null;
+  ema21Series = null;
+  bollingerUpperSeries = null;
+  bollingerMiddleSeries = null;
+  bollingerLowerSeries = null;
 });
 </script>
 
 <!-- Interface do usuário -->
 <div class="w-full">
   <!-- Cabeçalho do gráfico com botão maximizar -->
-  <div class="flex justify-between items-center mb-2">
+  <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
     <h3 class="text-lg font-semibold text-primary-600 dark:text-primary-400">
       {symbol} - {interval}
     </h3>
-    <button 
-      class="maximize-btn"
-      onclick={maximizeChart}
-      title={isMaximized ? "Minimizar gráfico" : "Maximizar gráfico"}
-    >
-      {isMaximized ? "🗗" : "⛶"}
-    </button>
+    
+    <!-- Controles de indicadores -->
+    <div class="flex gap-2 items-center">
+      <button 
+        class="indicator-toggle {showSMA ? 'active' : ''}"
+        onclick={() => showSMA = !showSMA}
+        title="Mostrar/Ocultar SMAs"
+      >
+        SMA
+      </button>
+      <button 
+        class="indicator-toggle {showEMA ? 'active' : ''}"
+        onclick={() => showEMA = !showEMA}
+        title="Mostrar/Ocultar EMAs"
+      >
+        EMA
+      </button>
+      <button 
+        class="indicator-toggle {showBollinger ? 'active' : ''}"
+        onclick={() => showBollinger = !showBollinger}
+        title="Mostrar/Ocultar Bandas de Bollinger"
+      >
+        BB
+      </button>
+      <button 
+        class="indicator-toggle {showMACD ? 'active' : ''}"
+        onclick={() => showMACD = !showMACD}
+        title="Mostrar/Ocultar MACD Histograma"
+      >
+        MACD
+      </button>
+      <button 
+        class="maximize-btn"
+        onclick={maximizeChart}
+        title={isMaximized ? "Minimizar gráfico" : "Maximizar gráfico"}
+      >
+        {isMaximized ? "🗗" : "⛶"}
+      </button>
+    </div>
   </div>
   
   <!-- Container do gráfico normal -->
@@ -513,7 +1067,42 @@ onDestroy(() => {
           >
             Max
           </span>
-        </div>        <!-- Seletor de Timeframes no modo maximizado -->
+        </div>
+        
+        <!-- Controles de indicadores no modo maximizado -->
+        <div class="flex gap-1.5 items-center mx-2">
+          <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Indicadores:</span>
+          <button 
+            class="indicator-toggle-max {showSMA ? 'active' : ''}"
+            onclick={() => showSMA = !showSMA}
+            title="Mostrar/Ocultar SMAs"
+          >
+            SMA
+          </button>
+          <button 
+            class="indicator-toggle-max {showEMA ? 'active' : ''}"
+            onclick={() => showEMA = !showEMA}
+            title="Mostrar/Ocultar EMAs"
+          >
+            EMA
+          </button>
+          <button 
+            class="indicator-toggle-max {showBollinger ? 'active' : ''}"
+            onclick={() => showBollinger = !showBollinger}
+            title="Mostrar/Ocultar Bandas de Bollinger"
+          >
+            BB
+          </button>
+          <button 
+            class="indicator-toggle-max {showMACD ? 'active' : ''}"
+            onclick={() => showMACD = !showMACD}
+            title="Mostrar/Ocultar MACD Histograma"
+          >
+            MACD
+          </button>
+        </div>
+        
+        <!-- Seletor de Timeframes no modo maximizado -->
         <div class="flex items-center gap-1.5 mx-1.5">
           <span class="text-xs font-medium text-gray-600 dark:text-gray-300">TF:</span>
           <div class="flex gap-0.5">
@@ -539,7 +1128,7 @@ onDestroy(() => {
         </button>
       </div>
       
-      <!-- Container do gráfico maximizado -->
+      <!-- Container do gráfico maximizado (agora inclui MACD integrado) -->
       <div 
         bind:this={maximizedContainer}
         class="maximized-chart"
@@ -586,6 +1175,88 @@ onDestroy(() => {
     background: color-mix(in srgb, var(--crypto-color, #3b82f6) 60%, black);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
   }
+  
+  /* Botões de controle de indicadores */
+  .indicator-toggle {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .indicator-toggle:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+  
+  .indicator-toggle.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+  }
+  
+  :global(.dark) .indicator-toggle {
+    background: #1e293b;
+    border-color: #475569;
+    color: #94a3b8;
+  }
+  
+  :global(.dark) .indicator-toggle:hover {
+    background: #334155;
+    border-color: #64748b;
+  }
+  
+  :global(.dark) .indicator-toggle.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+  }
+  
+  .indicator-toggle-max {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: white;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .indicator-toggle-max:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+  }
+  
+  .indicator-toggle-max.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+  }
+  
+  :global(.dark) .indicator-toggle-max {
+    background: #1e293b;
+    border-color: #475569;
+    color: #94a3b8;
+  }
+  
+  :global(.dark) .indicator-toggle-max:hover {
+    background: #334155;
+    border-color: #64748b;
+  }
+  
+  :global(.dark) .indicator-toggle-max.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: white;
+  }
+  
     /* Overlay maximizado */
   .maximized-overlay {
     position: fixed;
