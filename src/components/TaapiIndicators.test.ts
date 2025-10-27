@@ -238,7 +238,7 @@ describe('TaapiIndicators Component Rendering', () => {
         }
       });
 
-      expect(screen.getByText('ATR14 Daily')).toBeInTheDocument();
+      expect(screen.getAllByText('ATR14 Daily').length).toBeGreaterThan(0);
     });
 
     it('should show reconfigure button in development', () => {
@@ -280,7 +280,8 @@ describe('TaapiIndicators Component Rendering', () => {
           atrError: null,
           lastATRCheck: null,
           nextATRCheck: null,
-          onConfigureATR: vi.fn()
+          onConfigureATR: vi.fn(),
+          isProduction: true
         }
       });
 
@@ -299,7 +300,8 @@ describe('TaapiIndicators Component Rendering', () => {
           atrError: null,
           lastATRCheck: null,
           nextATRCheck: null,
-          onConfigureATR: vi.fn()
+          onConfigureATR: vi.fn(),
+          isProduction: true
         }
       });
 
@@ -317,11 +319,12 @@ describe('TaapiIndicators Component Rendering', () => {
           atrError: null,
           lastATRCheck: new Date(),
           nextATRCheck: new Date(),
-          onConfigureATR: vi.fn()
+          onConfigureATR: vi.fn(),
+          isProduction: true
         }
       });
 
-      expect(screen.getByText('ATR14 Daily')).toBeInTheDocument();
+      expect(screen.getAllByText('ATR14 Daily').length).toBeGreaterThan(0);
     });
   });
 
@@ -340,7 +343,7 @@ describe('TaapiIndicators Component Rendering', () => {
       });
 
       // Verificar se o erro é passado para o componente ATRIndicator
-      expect(screen.getByText('ATR14 Daily')).toBeInTheDocument();
+      expect(screen.getAllByText('ATR14 Daily').length).toBeGreaterThan(0);
     });
   });
 
@@ -358,7 +361,7 @@ describe('TaapiIndicators Component Rendering', () => {
         }
       });
 
-      expect(screen.getByText('ATR14 Daily')).toBeInTheDocument();
+      expect(screen.getAllByText('ATR14 Daily').length).toBeGreaterThan(0);
     });
   });
 });

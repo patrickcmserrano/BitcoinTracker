@@ -12,6 +12,7 @@ export let atrError: string | null = null;
 export let lastATRCheck: Date | null = null;
 export let nextATRCheck: Date | null = null;
 export let onConfigureATR: () => void = () => {};
+export let isProduction: boolean = import.meta.env.PROD; // Allow override for testing
 
 // Estado para configuração da API TAAPI (apenas em desenvolvimento)
 let showApiConfig = false;
@@ -21,7 +22,7 @@ let taapiConfigured = false;
 // Funções para configuração da API TAAPI (apenas para desenvolvimento)
 function configureApiKey() {
   // Bloquear em produção
-  if (import.meta.env.PROD) {
+  if (isProduction) {
     console.warn('API configuration not allowed in production');
     return;
   }
@@ -39,14 +40,14 @@ function configureApiKey() {
 
 function checkTaapiStatus() {
   taapiConfigured = isTaapiConfigured();
-  if (!import.meta.env.PROD) {
+  if (!isProduction) {
     showConfigStatus();
   }
 }
 
 function clearApiConfiguration() {
   // Bloquear em produção
-  if (import.meta.env.PROD) {
+  if (isProduction) {
     console.warn('API configuration not allowed in production');
     return;
   }
@@ -90,7 +91,6 @@ checkTaapiStatus();
     <div class="space-y-4">
       <!-- ATR14 Daily -->
       <div class="card variant-glass p-3 rounded">
-        <h3 class="font-semibold mb-2 text-primary-500">ATR14 Daily</h3>
         <ATRIndicator          atr14Daily={currentData?.atr14Daily} 
           atrLastUpdated={currentData?.atrLastUpdated}
           loading={loading}
@@ -124,11 +124,12 @@ checkTaapiStatus();
     </div>
 
     <!-- Botão para reconfigurar (apenas em desenvolvimento) -->
-    {#if !import.meta.env.PROD}
-      <div class="text-center mt-4">        <button
+    <div class="text-center mt-4">
+      {#if !isProduction}
+        <button
           class="btn variant-outline-primary"
           onclick={() => {
-            if (!import.meta.env.PROD) {
+            if (!isProduction) {
               showApiConfig = true;
             }
           }}
@@ -136,18 +137,19 @@ checkTaapiStatus();
           Reconfigurar API
         </button>
         
-        {#if atrError}          <button
+        {#if atrError}
+          <button
             class="btn variant-outline-error ml-2"
             onclick={clearApiConfiguration}
           >
             Limpar Configuração
           </button>
         {/if}
-      </div>
-    {/if}
+      {/if}
+    </div>
   {:else}
     <!-- Configuração da API não feita -->
-    {#if import.meta.env.PROD}
+    {#if isProduction}
       <!-- Em produção, mostrar apenas aviso sem possibilidade de configurar -->
       <div class="text-center space-y-4">
         <div class="card variant-filled-surface p-4 rounded">
@@ -170,7 +172,7 @@ checkTaapiStatus();
           <button
           class="btn variant-filled-primary"
           onclick={() => {
-            if (!import.meta.env.PROD) {
+            if (!isProduction) {
               showApiConfig = true;
             }
           }}
@@ -182,7 +184,7 @@ checkTaapiStatus();
   {/if}
 
   <!-- Modal/Seção de configuração da API (apenas em desenvolvimento) -->
-  {#if showApiConfig && !import.meta.env.PROD}
+  {#if showApiConfig && !isProduction}
     <div class="mt-6 p-4 border-2 border-primary-300 rounded bg-surface-100-800-token">
       <h3 class="font-semibold mb-3 text-primary-500">Configurar Chave API</h3>
       
@@ -234,7 +236,7 @@ checkTaapiStatus();
           </div>
         {/if}
         
-        {#if !import.meta.env.PROD}
+        {#if !isProduction}
           <p class="text-warning-600">• Em desenvolvimento: a chave é armazenada no localStorage</p>
         {/if}
       </div>
