@@ -262,3 +262,44 @@ export const getBitcoinData = async (options: { checkATR?: boolean } = {}): Prom
     throw error;
   }
 };
+
+/**
+ * Busca dados de klines (candlesticks) da Binance
+ * @param symbol Símbolo do par de trading (ex: BTCUSDT)
+ * @param interval Intervalo de tempo (1m, 5m, 15m, 1h, 4h, 1d, 1w, etc)
+ * @param limit Número de candles a buscar (máximo 1000, padrão 500)
+ * @returns Array de klines no formato Binance
+ */
+export const getBinanceKlines = async (
+  symbol: string = 'BTCUSDT',
+  interval: string = '1h',
+  limit: number = 200
+): Promise<any[]> => {
+  try {
+    console.log(`API: Buscando ${limit} klines de ${symbol} no intervalo ${interval}`);
+    
+    const response = await axios.get(
+      `${BASE_URL}/api/v3/klines`,
+      {
+        params: {
+          symbol,
+          interval,
+          limit: Math.min(limit, 1000) // Binance limita a 1000
+        }
+      }
+    );
+    
+    console.log(`API: ${response.data.length} klines obtidos com sucesso`);
+    return response.data;
+  } catch (error) {
+    console.error(`Erro ao buscar klines de ${symbol}:`, error);
+    if (axios.isAxiosError(error)) {
+      console.error('Detalhes do erro:', error.message);
+      if (error.response) {
+        console.error('Status:', error.response.status);
+        console.error('Dados:', error.response.data);
+      }
+    }
+    throw error;
+  }
+};
