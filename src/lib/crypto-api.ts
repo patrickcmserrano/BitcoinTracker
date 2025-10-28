@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getTaapiService, initializeTaapiService } from './taapi-service';
 import { getAppConfig, isTaapiConfigured } from './config';
 import type { CryptoConfig, CryptoData } from './crypto-config';
+import { cacheService } from './cache-service';
 
 const BASE_URL = 'https://api.binance.com';
 
@@ -169,38 +170,49 @@ const processKlineData = (ticker24hr: Ticker24hr, klines10m: Kline[], klines1h: 
  * Busca dados ATR para uma criptomoeda específica
  */
 export const getATRData = async (config: CryptoConfig): Promise<{ atr14Daily: number; atrLastUpdated: Date } | null> => {
-  try {
-    if (!isTaapiConfigured()) {
-      console.log(`TAAPI: Service not configured, skipping ATR fetch for ${config.name}`);
-      return null;
+  const cacheKey = `atr_${config.id}`;
+  
+  return cacheService.get(
+    cacheKey,
+    async () => {
+      try {
+        if (!isTaapiConfigured()) {
+          console.log(`TAAPI: Service not configured, skipping ATR fetch for ${config.name}`);
+          return null;
+        }
+
+        const appConfig = getAppConfig();
+        
+        // Initialize TAAPI service if needed
+        let taapiService;
+        try {
+          taapiService = getTaapiService();
+        } catch {
+          taapiService = initializeTaapiService(appConfig.taapiSecretKey);
+        }
+
+        const atrResponse = await taapiService.getATR({
+          symbol: config.taapiSymbol,
+          interval: '1d',
+          exchange: 'binance',
+          period: 14
+        });
+
+        return {
+          atr14Daily: atrResponse.value,
+          atrLastUpdated: new Date()
+        };
+
+      } catch (error) {
+        console.error(`Error fetching ATR data for ${config.name}:`, error);
+        return null;
+      }
+    },
+    {
+      ttl: 300000, // 5 minutos para ATR
+      apiType: 'taapi'
     }
-
-    const appConfig = getAppConfig();
-    
-    // Initialize TAAPI service if needed
-    let taapiService;
-    try {
-      taapiService = getTaapiService();
-    } catch {
-      taapiService = initializeTaapiService(appConfig.taapiSecretKey);
-    }
-
-    const atrResponse = await taapiService.getATR({
-      symbol: config.taapiSymbol,
-      interval: '1d',
-      exchange: 'binance',
-      period: 14
-    });
-
-    return {
-      atr14Daily: atrResponse.value,
-      atrLastUpdated: new Date()
-    };
-
-  } catch (error) {
-    console.error(`Error fetching ATR data for ${config.name}:`, error);
-    return null;
-  }
+  );
 };
 
 /**
@@ -208,63 +220,74 @@ export const getATRData = async (config: CryptoConfig): Promise<{ atr14Daily: nu
  */
 export const getCryptoData = async (
   config: CryptoConfig, 
-  options: { checkATR?: boolean } = {}
+  options: { checkATR?: boolean; forceRefresh?: boolean } = {}
 ): Promise<CryptoData> => {
-  const { checkATR = true } = options;
+  const { checkATR = true, forceRefresh = false } = options;
+  const cacheKey = `crypto_data_${config.id}`;
   
-  try {
-    console.log(`API: Iniciando busca de dados do ${config.name}...`);
-    
-    // Obter dados de 24 horas
-    const ticker24hrResponse = await axios.get<Ticker24hr>(`${BASE_URL}/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`);
-    const ticker24hr = ticker24hrResponse.data;
+  return cacheService.get(
+    cacheKey,
+    async () => {
+      try {
+        console.log(`API: Iniciando busca de dados do ${config.name}...`);
+        
+        // Obter dados de 24 horas
+        const ticker24hrResponse = await axios.get<Ticker24hr>(`${BASE_URL}/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`);
+        const ticker24hr = ticker24hrResponse.data;
 
-    // Obter dados de candlesticks para diferentes intervalos
-    const [klines10mResponse, klines1hResponse, klines4hResponse, klines1dResponse, klines1wResponse] = await Promise.all([
-      fetchKlines(config.binanceSymbol, '1m', 10),
-      fetchKlines(config.binanceSymbol, '1m', 60),
-      fetchKlines(config.binanceSymbol, '1h', 4),
-      fetchKlines(config.binanceSymbol, '1h', 24),
-      fetchKlines(config.binanceSymbol, '1d', 7)
-    ]);
+        // Obter dados de candlesticks para diferentes intervalos
+        const [klines10mResponse, klines1hResponse, klines4hResponse, klines1dResponse, klines1wResponse] = await Promise.all([
+          fetchKlines(config.binanceSymbol, '1m', 10),
+          fetchKlines(config.binanceSymbol, '1m', 60),
+          fetchKlines(config.binanceSymbol, '1h', 4),
+          fetchKlines(config.binanceSymbol, '1h', 24),
+          fetchKlines(config.binanceSymbol, '1d', 7)
+        ]);
 
-    // Mapear os dados dos klines para o formato adequado
-    const klines10m = mapKlines(klines10mResponse);
-    const klines1h = mapKlines(klines1hResponse);
-    const klines4h = mapKlines(klines4hResponse);
-    const klines1d = mapKlines(klines1dResponse);
-    const klines1w = mapKlines(klines1wResponse);
+        // Mapear os dados dos klines para o formato adequado
+        const klines10m = mapKlines(klines10mResponse);
+        const klines1h = mapKlines(klines1hResponse);
+        const klines4h = mapKlines(klines4hResponse);
+        const klines1d = mapKlines(klines1dResponse);
+        const klines1w = mapKlines(klines1wResponse);
 
-    // Processar dados usando a mesma lógica da API original
-    const processedData = processKlineData(ticker24hr, klines10m, klines1h, klines4h, klines1d, klines1w);
-    
-    // Fetch ATR data only if requested (this will be cached and rate-limited)
-    const atrData = checkATR ? await getATRData(config) : null;
+        // Processar dados usando a mesma lógica da API original
+        const processedData = processKlineData(ticker24hr, klines10m, klines1h, klines4h, klines1d, klines1w);
+        
+        // Fetch ATR data only if requested (this will be cached and rate-limited)
+        const atrData = checkATR ? await getATRData(config) : null;
 
-    const result: CryptoData = {
-      config,
-      ...processedData,
-      // Add ATR data if available
-      ...(atrData && {
-        atr14Daily: atrData.atr14Daily,
-        atrLastUpdated: atrData.atrLastUpdated
-      })
-    };
-    
-    console.log(`API: Dados de ${config.name} obtidos com sucesso - Preço atual:`, result.price);
-    return result;
+        const result: CryptoData = {
+          config,
+          ...processedData,
+          // Add ATR data if available
+          ...(atrData && {
+            atr14Daily: atrData.atr14Daily,
+            atrLastUpdated: atrData.atrLastUpdated
+          })
+        };
+        
+        console.log(`API: Dados de ${config.name} obtidos com sucesso - Preço atual:`, result.price);
+        return result;
 
-  } catch (error) {
-    console.error(`Erro ao obter dados do ${config.name}:`, error);
-    if (axios.isAxiosError(error)) {
-      console.error('Detalhes do erro de rede:', error.message);
-      if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Dados:', error.response.data);
+      } catch (error) {
+        console.error(`Erro ao obter dados do ${config.name}:`, error);
+        if (axios.isAxiosError(error)) {
+          console.error('Detalhes do erro de rede:', error.message);
+          if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Dados:', error.response.data);
+          }
+        }
+        throw error;
       }
+    },
+    {
+      ttl: 15000, // 15 segundos para dados de cripto
+      apiType: 'binance',
+      forceRefresh
     }
-    throw error;
-  }
+  );
 };
 
 // Exportar função legacy para manter compatibilidade

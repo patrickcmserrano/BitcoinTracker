@@ -12,6 +12,7 @@
  */
 
 import axios from 'axios';
+import { cacheService } from './cache-service';
 
 const FUTURES_BASE_URL = 'https://fapi.binance.com';
 
@@ -296,49 +297,60 @@ export async function getTopTraderPositionRatio(
  * @param symbol Símbolo do par (ex: 'BTCUSDT')
  */
 export async function getBinanceFuturesData(symbol: string = 'BTCUSDT'): Promise<BinanceFuturesData> {
-  try {
-    console.log(`Binance Futures: Buscando dados de ${symbol}...`);
+  const cacheKey = `binance_futures_${symbol}`;
+  
+  return cacheService.get(
+    cacheKey,
+    async () => {
+      try {
+        console.log(`Binance Futures: Buscando dados de ${symbol}...`);
 
-    // Buscar todos os dados em paralelo com tratamento individual de erros
-    const results = await Promise.allSettled([
-      getFundingRate(symbol),
-      getOpenInterest(symbol),
-      getLongShortAccountRatio(symbol, '1h'),
-      getTopTraderPositionRatio(symbol, '1h')
-    ]);
+        // Buscar todos os dados em paralelo com tratamento individual de erros
+        const results = await Promise.allSettled([
+          getFundingRate(symbol),
+          getOpenInterest(symbol),
+          getLongShortAccountRatio(symbol, '1h'),
+          getTopTraderPositionRatio(symbol, '1h')
+        ]);
 
-    // Log dos resultados para debug
-    results.forEach((result, index) => {
-      const names = ['FundingRate', 'OpenInterest', 'LongShortRatio', 'TopTraderRatio'];
-      if (result.status === 'rejected') {
-        console.error(`Binance Futures ${names[index]} falhou:`, result.reason);
-      } else {
-        console.log(`Binance Futures ${names[index]} sucesso:`, result.value);
+        // Log dos resultados para debug
+        results.forEach((result, index) => {
+          const names = ['FundingRate', 'OpenInterest', 'LongShortRatio', 'TopTraderRatio'];
+          if (result.status === 'rejected') {
+            console.error(`Binance Futures ${names[index]} falhou:`, result.reason);
+          } else {
+            console.log(`Binance Futures ${names[index]} sucesso:`, result.value);
+          }
+        });
+
+        const [fundingRate, openInterest, longShortRatio, topTraderRatio] = results;
+
+        const resultData = {
+          fundingRate: fundingRate.status === 'fulfilled' ? fundingRate.value : null,
+          openInterest: openInterest.status === 'fulfilled' ? openInterest.value : null,
+          longShortRatio: longShortRatio.status === 'fulfilled' ? longShortRatio.value : null,
+          topTraderRatio: topTraderRatio.status === 'fulfilled' ? topTraderRatio.value : null
+        };
+
+        console.log('Binance Futures: Dados finais:', resultData);
+        return resultData;
+
+      } catch (error) {
+        console.error(`Erro ao buscar dados de Futures de ${symbol}:`, error);
+        // Retornar estrutura vazia em caso de erro
+        return {
+          fundingRate: null,
+          openInterest: null,
+          longShortRatio: null,
+          topTraderRatio: null
+        };
       }
-    });
-
-    const [fundingRate, openInterest, longShortRatio, topTraderRatio] = results;
-
-    const resultData = {
-      fundingRate: fundingRate.status === 'fulfilled' ? fundingRate.value : null,
-      openInterest: openInterest.status === 'fulfilled' ? openInterest.value : null,
-      longShortRatio: longShortRatio.status === 'fulfilled' ? longShortRatio.value : null,
-      topTraderRatio: topTraderRatio.status === 'fulfilled' ? topTraderRatio.value : null
-    };
-
-    console.log('Binance Futures: Dados finais:', resultData);
-    return resultData;
-
-  } catch (error) {
-    console.error(`Erro ao buscar dados de Futures de ${symbol}:`, error);
-    // Retornar estrutura vazia em caso de erro
-    return {
-      fundingRate: null,
-      openInterest: null,
-      longShortRatio: null,
-      topTraderRatio: null
-    };
-  }
+    },
+    {
+      ttl: 60000, // 1 minuto para dados de Futures
+      apiType: 'binance'
+    }
+  );
 }
 
 // ===== FORMATAÇÃO E UTILIDADES =====
