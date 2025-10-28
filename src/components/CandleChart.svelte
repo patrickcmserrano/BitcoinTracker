@@ -9,6 +9,7 @@ export let symbol = 'BTCUSDT';
 export let interval = '1m';
 export let activeTimeframe = '1h'; // Timeframe ativo do rastreador
 export let onTimeframeChange: ((timeframe: string) => void) | null = null; // Callback para mudança de timeframe
+export let defaultOscillator: 'MACD' | 'RSI' = 'MACD'; // Oscilador padrão a exibir
 
 // Variáveis do componente
 let chartContainer: HTMLDivElement;
@@ -17,6 +18,7 @@ let candleSeries: ISeriesApi<'Candlestick'> | null = null;
 let macdHistogramSeries: ISeriesApi<'Histogram'> | null = null;
 let macdLineSeries: ISeriesApi<'Line'> | null = null;
 let macdSignalSeries: ISeriesApi<'Line'> | null = null;
+let rsiSeries: ISeriesApi<'Line'> | null = null;
 let sma20Series: ISeriesApi<'Line'> | null = null;
 let sma50Series: ISeriesApi<'Line'> | null = null;
 let ema9Series: ISeriesApi<'Line'> | null = null;
@@ -36,8 +38,10 @@ let isConnecting = false; // Flag para evitar múltiplas conexões simultâneas
 let showSMA = false;
 let showEMA = false;
 let showBollinger = false;
-let showMACD = false;
+let showMACD = defaultOscillator === 'MACD';
+let showRSI = defaultOscillator === 'RSI';
 let macdReady = false; // Flag para indicar quando o MACD está pronto
+let rsiReady = false; // Flag para indicar quando o RSI está pronto
 
 // Estado de maximização
 let isMaximized = false;
@@ -201,7 +205,14 @@ function initChart(container?: HTMLDivElement) {
 
   // Se MACD estiver ativo, adicionar as séries no mesmo gráfico
   if (showMACD) {
+    console.log('🎯 initChart: Adicionando séries MACD (showMACD = true)');
     addMacdSeries();
+  }
+
+  // Se RSI estiver ativo, adicionar a série no mesmo gráfico
+  if (showRSI) {
+    console.log('🎯 initChart: Adicionando série RSI (showRSI = true)');
+    addRsiSeries();
   }
 
   // Responsividade - observar redimensionamento dos containers
@@ -226,6 +237,8 @@ function initChart(container?: HTMLDivElement) {
 
 function addMacdSeries() {
   if (!chart) return;
+
+  console.log('➕ Adicionando séries MACD ao gráfico');
 
   // Adicionar série de histograma MACD PRIMEIRO para criar o price scale 'macd'
   macdHistogramSeries = chart.addSeries(HistogramSeries, {
@@ -259,6 +272,7 @@ function addMacdSeries() {
   });
 
   macdReady = true;
+  console.log('✅ Séries MACD adicionadas com sucesso');
 }
 
 function removeMacdSeries() {
@@ -291,6 +305,56 @@ function removeMacdSeries() {
     });
   }
 }
+
+function addRsiSeries() {
+  if (!chart) return;
+
+  // Adicionar série RSI
+  rsiSeries = chart.addSeries(LineSeries, {
+    color: '#9C27B0',
+    lineWidth: 2,
+    priceScaleId: 'rsi',
+    priceFormat: {
+      type: 'price',
+      precision: 2,
+      minMove: 0.01,
+    },
+  });
+
+  // Configurar o price scale do RSI para posicionar na parte inferior
+  chart.priceScale('rsi').applyOptions({
+    scaleMargins: {
+      top: 0.7, // RSI ocupa os 30% inferiores do gráfico
+      bottom: 0,
+    },
+  });
+
+  rsiReady = true;
+}
+
+function removeRsiSeries() {
+  if (!chart) return;
+
+  if (rsiSeries) {
+    chart.removeSeries(rsiSeries);
+    rsiSeries = null;
+  }
+  
+  rsiReady = false;
+  
+  // Ajustar margens do price scale principal
+  if (chart) {
+    chart.applyOptions({
+      rightPriceScale: {
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.1,
+        },
+      },
+    });
+  }
+}
+
 
 /**
  * Adiciona ou atualiza séries de indicadores técnicos
@@ -572,6 +636,59 @@ async function updateMacdChart() {
   }
 }
 
+/**
+ * Atualiza o gráfico RSI
+ */
+async function updateRsiChart() {
+  if (!chart || !rsiSeries || isDestroyed) return;
+
+  try {
+    const klines = await getBinanceKlines(symbol, interval, 200);
+    
+    // Verificar se o componente foi destruído durante a chamada assíncrona
+    if (isDestroyed || !chart || !rsiSeries) return;
+    
+    if (!klines || klines.length === 0) return;
+
+    const closes = klines.map(k => parseFloat(k[4]));
+    
+    // Calcular RSI usando a biblioteca technicalindicators
+    const { RSI } = await import('technicalindicators');
+    const rsiValues = RSI.calculate({
+      values: closes,
+      period: 14
+    });
+
+    const times = klines.map(k => Math.floor(k[0] / 1000) as Time);
+    
+    // RSI Line Data
+    const rsiLineData: LineData[] = [];
+    const rsiOffset = times.length - rsiValues.length;
+    
+    rsiValues.forEach((value, i) => {
+      if (value !== undefined && times[i + rsiOffset]) {
+        rsiLineData.push({
+          time: times[i + rsiOffset],
+          value
+        });
+      }
+    });
+
+    // Verificar novamente antes de atualizar a série
+    if (isDestroyed || !chart || !rsiSeries) return;
+    
+    rsiSeries.setData(rsiLineData);
+
+    // Marcar RSI como pronto
+    rsiReady = true;
+
+  } catch (error) {
+    console.error('Erro ao atualizar RSI:', error);
+    rsiReady = false;
+  }
+}
+
+
 // Observar mudanças nos estados de visibilidade
 $: if (chart && (showSMA || showEMA || showBollinger)) {
   updateIndicatorSeries();
@@ -598,6 +715,20 @@ $: if (showMACD && chart) {
   // Remover séries MACD
   removeMacdSeries();
 }
+
+// Observar mudança no estado do RSI
+$: if (showRSI && chart) {
+  rsiReady = false; // Reset da flag
+  // Adicionar série RSI se ainda não existe
+  if (!rsiSeries) {
+    addRsiSeries();
+    updateRsiChart();
+  }
+} else if (!showRSI && chart) {
+  // Remover série RSI
+  removeRsiSeries();
+}
+
 
 async function loadHistoricalData() {
   try {
@@ -632,6 +763,16 @@ async function loadHistoricalData() {
     // Ajustar a visualização
     if (chart) {
       chart.timeScale().fitContent();
+    }
+    
+    // Atualizar indicadores padrão se estiverem ativos
+    if (showMACD && macdHistogramSeries) {
+      console.log('📊 Atualizando MACD após carregar dados históricos');
+      await updateMacdChart();
+    }
+    if (showRSI && rsiSeries) {
+      console.log('📈 Atualizando RSI após carregar dados históricos');
+      await updateRsiChart();
     }
     
     // Conectar ao WebSocket após carregar o histórico
@@ -1018,10 +1159,23 @@ onDestroy(() => {
       </button>
       <button 
         class="indicator-toggle {showMACD ? 'active' : ''}"
-        onclick={() => showMACD = !showMACD}
+        onclick={() => {
+          showMACD = !showMACD;
+          if (showMACD && showRSI) showRSI = false; // Desativar RSI se ativar MACD
+        }}
         title="Mostrar/Ocultar MACD Histograma"
       >
         MACD
+      </button>
+      <button 
+        class="indicator-toggle {showRSI ? 'active' : ''}"
+        onclick={() => {
+          showRSI = !showRSI;
+          if (showRSI && showMACD) showMACD = false; // Desativar MACD se ativar RSI
+        }}
+        title="Mostrar/Ocultar RSI"
+      >
+        RSI
       </button>
       <button 
         class="maximize-btn"
@@ -1037,7 +1191,7 @@ onDestroy(() => {
   {#if !isMaximized}
     <div 
       bind:this={chartContainer}
-      class="w-full h-full min-h-[400px] max-h-[700px] rounded"
+      class="w-full h-full min-h-[700px] rounded"
     ></div>
   {/if}
 </div>
@@ -1095,10 +1249,23 @@ onDestroy(() => {
           </button>
           <button 
             class="indicator-toggle-max {showMACD ? 'active' : ''}"
-            onclick={() => showMACD = !showMACD}
+            onclick={() => {
+              showMACD = !showMACD;
+              if (showMACD && showRSI) showRSI = false; // Desativar RSI se ativar MACD
+            }}
             title="Mostrar/Ocultar MACD Histograma"
           >
             MACD
+          </button>
+          <button 
+            class="indicator-toggle-max {showRSI ? 'active' : ''}"
+            onclick={() => {
+              showRSI = !showRSI;
+              if (showRSI && showMACD) showMACD = false; // Desativar MACD se ativar RSI
+            }}
+            title="Mostrar/Ocultar RSI"
+          >
+            RSI
           </button>
         </div>
         

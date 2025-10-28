@@ -20,10 +20,21 @@
   let error: string | null = null;
   let intervalId: ReturnType<typeof setInterval> | null = null;
   let nextFundingCountdown = '';
+  let previousSymbol: string | null = null;
 
   // Estados de sentimento
   let fundingSentiment: 'bullish' | 'neutral' | 'bearish' = 'neutral';
   let lsrSentiment: 'bullish' | 'neutral' | 'bearish' = 'neutral';
+
+  // Reativo: detecta mudança de símbolo e recarrega dados
+  $: if (symbol && symbol !== previousSymbol) {
+    console.log(`BinanceFutures: Symbol changed from ${previousSymbol} to ${symbol}`);
+    previousSymbol = symbol;
+    if (previousSymbol !== null) {
+      // Não é a primeira vez, recarregar dados
+      fetchData();
+    }
+  }
 
   async function fetchData() {
     try {
