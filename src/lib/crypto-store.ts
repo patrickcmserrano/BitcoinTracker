@@ -1,6 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import type { CryptoConfig, CryptoData } from './crypto-config';
 import { getDefaultCrypto, getAllCryptos } from './crypto-config';
+import { getCryptoData } from './crypto-api';
 
 // Interface para o estado da aplicação
 interface AppState {
@@ -142,4 +143,67 @@ export const getCryptoDataById = (cryptoId: string) => {
 // Função para obter status de loading de um crypto específico
 export const getCryptoLoadingById = (cryptoId: string) => {
   return derived(appState, $state => $state.loading[cryptoId] || false);
+};
+
+/**
+ * Carrega dados para uma criptomoeda específica
+ */
+export const loadCryptoData = async (
+  crypto: CryptoConfig, 
+  options: { checkATR?: boolean; forceRefresh?: boolean } = {}
+): Promise<void> => {
+  const { checkATR = true, forceRefresh = false } = options;
+  
+  try {
+    console.log(`📥 Loading data for ${crypto.name}...`);
+    setCryptoLoading(crypto.id, true);
+    setCryptoError(crypto.id, null);
+    
+    const data = await getCryptoData(crypto, { checkATR, forceRefresh });
+    
+    setCryptoData(crypto.id, data);
+    console.log(`✅ Data loaded for ${crypto.name}`);
+    
+  } catch (error) {
+    console.error(`❌ Error loading data for ${crypto.name}:`, error);
+    setCryptoError(crypto.id, error instanceof Error ? error.message : 'Unknown error');
+  } finally {
+    setCryptoLoading(crypto.id, false);
+  }
+};
+
+/**
+ * Carrega dados para a criptomoeda atualmente selecionada
+ */
+export const loadCurrentCryptoData = async (
+  options: { checkATR?: boolean; forceRefresh?: boolean } = {}
+): Promise<void> => {
+  const current = get(selectedCrypto);
+  await loadCryptoData(current, options);
+};
+
+/**
+ * Atualiza dados (sem mostrar loading state inicial)
+ */
+export const updateCryptoData = async (
+  crypto: CryptoConfig,
+  options: { checkATR?: boolean } = {}
+): Promise<void> => {
+  const { checkATR = false } = options;
+  
+  try {
+    console.log(`🔄 Updating data for ${crypto.name}...`);
+    setCryptoUpdating(crypto.id, true);
+    
+    const data = await getCryptoData(crypto, { checkATR, forceRefresh: false });
+    
+    setCryptoData(crypto.id, data);
+    console.log(`✅ Data updated for ${crypto.name}`);
+    
+  } catch (error) {
+    console.error(`❌ Error updating data for ${crypto.name}:`, error);
+    setCryptoError(crypto.id, error instanceof Error ? error.message : 'Unknown error');
+  } finally {
+    setCryptoUpdating(crypto.id, false);
+  }
 };
