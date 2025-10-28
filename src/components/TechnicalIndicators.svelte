@@ -80,16 +80,28 @@
     }
   }
 
+  // Variáveis para rastrear mudanças
+  let previousSymbol: string | null = null;
+  let previousInterval: string | null = null;
+  
+  // Reativo: detecta mudança de símbolo ou intervalo
+  $: if ((symbol && symbol !== previousSymbol) || (interval && interval !== previousInterval)) {
+    console.log(`📊 TechnicalIndicators: Symbol/Interval changed - Symbol: ${previousSymbol} → ${symbol}, Interval: ${previousInterval} → ${interval}`);
+    
+    const shouldReload = previousSymbol !== null || previousInterval !== null;
+    previousSymbol = symbol;
+    previousInterval = interval;
+    
+    if (shouldReload) {
+      fetchAndCalculateIndicators();
+    }
+  }
+
   onMount(() => {
     fetchAndCalculateIndicators();
     const interval_id = setInterval(fetchAndCalculateIndicators, UPDATE_INTERVAL);
     return () => clearInterval(interval_id);
   });
-
-  // Recarregar quando mudar o intervalo
-  $: if (interval) {
-    fetchAndCalculateIndicators();
-  }
 
   function getTrendIcon(trend: string): string {
     const icons: Record<string, string> = {

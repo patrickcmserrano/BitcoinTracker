@@ -2,9 +2,38 @@
 import { onMount, onDestroy } from 'svelte';
 import { _ } from '../lib/i18n';
 import { selectedCrypto, currentCryptoData } from '../lib/crypto-store';
-import { getBinanceKlines } from '../lib/api';
+import { cacheService } from '../lib/cache-service';
 import { MACD, Stochastic, EMA } from 'technicalindicators';
 import CandleChart from './CandleChart.svelte';
+import CryptoTracker from './CryptoTracker.svelte';
+import axios from 'axios';
+
+const BASE_URL = 'https://api.binance.com';
+
+// Função auxiliar para buscar klines com cache
+async function getBinanceKlines(symbol: string, interval: string, limit: number): Promise<any[]> {
+  const cacheKey = `klines_${symbol}_${interval}_${limit}`;
+  
+  return cacheService.get(
+    cacheKey,
+    async () => {
+      console.log(`🎯 Buscando ${limit} klines de ${symbol} no intervalo ${interval}`);
+      const response = await axios.get(`${BASE_URL}/api/v3/klines`, {
+        params: {
+          symbol,
+          interval,
+          limit: Math.min(limit, 1000)
+        }
+      });
+      console.log(`✅ ${response.data.length} klines obtidos com sucesso`);
+      return response.data;
+    },
+    {
+      ttl: interval.includes('m') ? 30000 : 60000, // 30s para minutos, 60s para outros
+      apiType: 'binance'
+    }
+  );
+}
 
 // Estados para cada timeframe (Triple Screen)
 let weeklyTrend: 'ALTA' | 'BAIXA' | 'LATERAL' | null = null;
@@ -49,6 +78,12 @@ let capital = 2000; // Capital operacional padrão (USD)
 let riskPercentage = 2; // Risco máximo por operação (%)
 let maxMonthlyLoss = 6; // Perda máxima mensal (%)
 let riskRewardRatio = 1.5; // Relação Risco/Recompensa mínima
+
+// Referência para o CryptoTracker
+let cryptoTrackerRef: CryptoTracker;
+let cryptoData: any = null;
+let cryptoLoading = false;
+let activeTimeframe = '1h';
 
 // Cálculo do Stop Loss usando ATR
 let atrValue: number | null = null;
@@ -312,6 +347,37 @@ $: if (entryPrice && atrValue) {
   calculateRiskManagement();
 }
 
+// Reativo: detecta mudança de criptomoeda e recarrega dados
+let previousCryptoId: string | null = null;
+$: if ($selectedCrypto && $selectedCrypto.id !== previousCryptoId) {
+  console.log(`🔄 Triple Screen: Crypto changed from ${previousCryptoId} to ${$selectedCrypto.id}`);
+  previousCryptoId = $selectedCrypto.id;
+  if (previousCryptoId !== null) {
+    // Não é a primeira vez, resetar variáveis e recarregar dados
+    weeklyTrend = null;
+    dailyTrend = null;
+    hourlySetup = null;
+    weeklyMACD = null;
+    weeklyEMA17 = null;
+    dailyStochastic = null;
+    dailyEMA17 = null;
+    hourlyEMA17 = null;
+    operationDirection = null;
+    exclusionRule = '';
+    atrValue = null;
+    lastPrice = null;
+    entryPrice = null;
+    stopLoss = null;
+    takeProfit = null;
+    positionSize = null;
+    
+    // Resetar checklist
+    tradeReasons = tradeReasons.map(r => ({ ...r, active: r.required ? false : r.active }));
+    
+    fetchTripleScreenData();
+  }
+}
+
 onMount(() => {
   fetchTripleScreenData();
   
@@ -321,6 +387,17 @@ onMount(() => {
   return () => clearInterval(interval);
 });
 </script>
+
+<!-- Componente CryptoTracker no topo (com a barra de preço fixa) -->
+<div class="triple-screen-with-tracker">
+  <CryptoTracker 
+    bind:this={cryptoTrackerRef}
+    config={$selectedCrypto}
+    bind:data={cryptoData}
+    bind:loading={cryptoLoading}
+    bind:activeTimeframe={activeTimeframe}
+  />
+</div>
 
 <div class="triple-screen-container">
   <!-- Header -->
@@ -391,6 +468,14 @@ onMount(() => {
         <div class="rule-box">
           <strong>Regra de Ouro #2:</strong> {exclusionRule || 'Calculando tendência...'}
         </div>
+        
+        <div class="chart-preview">
+          <CandleChart 
+            symbol={$selectedCrypto.binanceSymbol}
+            interval="1w"
+            activeTimeframe="1w"
+          />
+        </div>
       </div>
 
       <!-- 2. MARÉ (Diário) - Timing de Entrada -->
@@ -435,6 +520,15 @@ onMount(() => {
         
         <div class="setup-box">
           <strong>Setup:</strong> {hourlySetup || 'AGUARDAR'}
+        </div>
+        
+        <div class="chart-preview">
+          <CandleChart 
+            symbol={$selectedCrypto.binanceSymbol}
+            interval="1d"
+            activeTimeframe="1d"
+            defaultOscillator="RSI"
+          />
         </div>
       </div>
 
@@ -837,7 +931,9 @@ onMount(() => {
 <style>
   .triple-screen-container {
     width: 100%;
-    padding: 1rem;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 1rem 2rem;
     color: var(--app-text);
   }
 
@@ -930,6 +1026,8 @@ onMount(() => {
     padding: 1.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s;
+    display: flex;
+    flex-direction: column;
   }
 
   :global(.dark) .timeframe-card {
@@ -1141,10 +1239,10 @@ onMount(() => {
   }
 
   .chart-preview {
-    margin-top: 1rem;
-    height: 250px;
+    margin-top: auto;
+    padding-top: 1rem;
     width: 100%;
-    overflow: hidden;
+    min-height: 400px;
   }
 
   /* === Seção de Justificativa da Análise === */
@@ -1893,5 +1991,22 @@ onMount(() => {
     .title {
       font-size: 1.5rem;
     }
+  }
+  
+  /* Estilos para o container do CryptoTracker no Triple Screen */
+  .triple-screen-with-tracker {
+    margin-bottom: 2rem;
+  }
+  
+  /* Ocultar a seção de gráfico do CryptoTracker no Triple Screen 
+     (já temos os gráficos separados por timeframe) */
+  .triple-screen-with-tracker :global(.chart-preview),
+  .triple-screen-with-tracker :global(.min-h-\[500px\]) {
+    display: none !important;
+  }
+  
+  /* Ajustar espaçamento do tracker no Triple Screen */
+  .triple-screen-with-tracker :global(.crypto-tracker) {
+    margin-top: 70px; /* Manter espaço para a barra superior */
   }
 </style>
