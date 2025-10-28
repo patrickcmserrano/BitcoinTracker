@@ -1,7 +1,6 @@
 <script lang="ts">
   import './styles/global.css';
-  import ThemeToggle from './components/ThemeToggle.svelte';
-  import LanguageSelector from './components/LanguageSelector.svelte';
+  import AppHeader from './components/AppHeader.svelte';
   import CryptoSelector from './components/CryptoSelector.svelte';  import CryptoTracker from './components/CryptoTracker.svelte';
   import MarketIndicators from './components/MarketIndicators.svelte';
   import TechnicalIndicators from './components/TechnicalIndicators.svelte';
@@ -11,7 +10,7 @@
   // import TaapiIndicators from './components/TaapiIndicators.svelte'; // Removido temporariamente
   import { _ } from './lib/i18n';
   import { setupI18n } from './lib/i18n';
-  import { onMount } from 'svelte';  import { selectedCrypto, currentCryptoData, isCurrentCryptoLoading } from './lib/crypto-store';
+  import { onMount, onDestroy } from 'svelte';  import { selectedCrypto, currentCryptoData, isCurrentCryptoLoading } from './lib/crypto-store';
   import type { CryptoData } from './lib/crypto-config';
   import { initCryptoIcons } from './lib/crypto-icons';
   
@@ -33,6 +32,44 @@
   $: currentData = $currentCryptoData;
   $: loading = $isCurrentCryptoLoading;
   
+  // Debug: Log quando os dados mudam
+  $: if (currentData) {
+    console.log('📊 App.svelte - Dados atualizados:', { 
+      crypto: $selectedCrypto.symbol, 
+      price: currentData.price,
+      hasData: !!currentData 
+    });
+  }
+  
+  // Estado para detectar tela Full HD ou maior
+  let isFullHD = false;
+  
+  // Handlers para o AppHeader
+  function handleTimeframeChange(timeframe: string) {
+    currentTimeframe = timeframe;
+    // Propagar mudança para o CryptoTracker se necessário
+    if (cryptoTrackerRef && cryptoTrackerRef.changeTimeframe) {
+      cryptoTrackerRef.changeTimeframe(timeframe);
+    }
+  }
+  
+  function handleViewChange(view: 'dashboard' | 'triplescreen') {
+    currentView = view;
+  }
+  
+  // Função para verificar se a tela é Full HD ou maior (1920px+)
+  // Usa screen.width para detectar a resolução real, não afetada por zoom
+  function checkScreenSize() {
+    // Usar screen.width (resolução real) ou innerWidth (viewport)
+    // screen.width não é afetado por zoom do navegador
+    const screenWidth = window.screen.width;
+    const viewportWidth = window.innerWidth;
+    
+    // Considera Full HD se a tela física for >= 1920px
+    // OU se o viewport for >= 1600px (para telas menores com zoom out)
+    isFullHD = screenWidth >= 1920 || viewportWidth >= 1600;
+  }
+  
   onMount(async () => {
     // Verificar e sincronizar o tema ao montar o componente principal
     const storedMode = localStorage.getItem('mode') || 'light';
@@ -47,48 +84,45 @@
     
     // Initialize crypto icons from official sources
     await initCryptoIcons();
+    
+    // Verificar tamanho da tela
+    checkScreenSize();
+    
+    // Adicionar listener para redimensionamento
+    window.addEventListener('resize', checkScreenSize);
+  });
+  
+  onDestroy(() => {
+    // Remover listener
+    window.removeEventListener('resize', checkScreenSize);
   });
 </script>
 
 <div class="min-h-screen w-full" style="background-color: var(--app-background); color: var(--app-text);">
-  <main class="min-h-screen px-3 py-2 container mx-auto flex flex-col max-w-7xl">
-    <!-- Header compacto -->
-    <div class="flex justify-between items-center mb-3">
-      <div class="language-selector">
-        <LanguageSelector />
-      </div>
-      
-      <div class="theme-toggle-container">
-        <ThemeToggle />
-      </div>  
-    </div>
-    
-    <!-- Navegação por Tabs -->
-    <div class="tabs-container">
-      <button 
-        class="tab-button"
-        class:active={currentView === 'dashboard'}
-        on:click={() => currentView = 'dashboard'}
-      >
-        📊 Dashboard
-      </button>
-      <button 
-        class="tab-button"
-        class:active={currentView === 'triplescreen'}
-        on:click={() => currentView = 'triplescreen'}
-      >
-        🎯 Triple Screen LOTUS
-      </button>
-    </div>
+  <!-- AppHeader Unificado: substitui header, tabs e barra de preço -->
+  <AppHeader 
+    selectedCrypto={$selectedCrypto}
+    cryptoData={currentData}
+    activeTimeframe={currentTimeframe}
+    {currentView}
+    {isFullHD}
+    {loading}
+    onTimeframeChange={handleTimeframeChange}
+    onViewChange={handleViewChange}
+  />
+
+  <main class="min-h-screen px-3 py-2 mx-auto flex flex-col w-full pt-[130px]" class:fullhd-layout={isFullHD}>
     
     <!-- Conteúdo baseado na view ativa -->
     {#if currentView === 'dashboard'}
       <!-- Conteúdo principal com altura responsiva -->
       <div class="content-container flex-grow space-y-3 flex flex-col">
-        <!-- Seletor de Criptomoedas compacto -->
-        <div class="flex-shrink-0">
-          <CryptoSelector />
-        </div>
+        <!-- Seletor de Criptomoedas compacto (oculto em Full HD pois vira barra lateral) -->
+        {#if !isFullHD}
+          <div class="flex-shrink-0">
+            <CryptoSelector />
+          </div>
+        {/if}
         
         <!-- Tracker da Criptomoeda Selecionada - área principal flexível -->
         <div class="flex-grow">
@@ -139,70 +173,16 @@
       <p class="text-xs text-gray-600 dark:text-gray-400">{$_('footer.copyright')}</p>
     </footer>
   </main>
+  
+  <!-- CryptoSelector em modo Full HD (barra lateral fixa) -->
+  {#if isFullHD}
+    <CryptoSelector />
+  {/if}
 </div>
 
 <style>
-  .tabs-container {
-    display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.5rem;
-    padding: 0.5rem;
-    background: var(--color-surface-100);
-    border-radius: 12px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
-
-  :global(.dark) .tabs-container {
-    background: var(--color-surface-800);
-  }
-
-  .tab-button {
-    flex: 1;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.95rem;
-    font-weight: 600;
-    background: transparent;
-    color: var(--color-surface-600);
-    border: 2px solid transparent;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  :global(.dark) .tab-button {
-    color: var(--color-surface-400);
-  }
-
-  .tab-button:hover:not(.active) {
-    background: var(--color-surface-200);
-    color: var(--color-surface-700);
-  }
-
-  :global(.dark) .tab-button:hover:not(.active) {
-    background: var(--color-surface-700);
-    color: var(--color-surface-300);
-  }
-
-  .tab-button.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  }
-
-  :global(.dark) .tab-button.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-color: #764ba2;
-  }
-
-  @media (max-width: 640px) {
-    .tab-button {
-      font-size: 0.85rem;
-      padding: 0.6rem 1rem;
-    }
+  /* Layout Full HD: adiciona padding para dar espaço à barra lateral */
+  main.fullhd-layout {
+    padding-left: 130px; /* 120px da barra + 10px de margem */
   }
 </style>
