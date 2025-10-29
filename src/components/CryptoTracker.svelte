@@ -473,7 +473,8 @@ onMount(async () => {
       }, {
         minSwipeDistance: 60,
         maxSwipeTime: 400,
-        preventScroll: true
+        preventScroll: true,
+        excludeSelectors: ['.card'] // Excluir o card do gráfico dos gestos de swipe
       });
       console.log('Swipe gestures configurados para', config.name);
     }

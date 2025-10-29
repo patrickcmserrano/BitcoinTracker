@@ -5,6 +5,7 @@ export interface SwipeConfig {
   minSwipeDistance: number;
   maxSwipeTime: number;
   preventScroll: boolean;
+  excludeSelectors?: string[]; // Seletores CSS de elementos a serem excluídos
 }
 
 export interface SwipeCallbacks {
@@ -23,7 +24,8 @@ interface TouchPoint {
 const DEFAULT_CONFIG: SwipeConfig = {
   minSwipeDistance: 50,     // Minimum distance in pixels for a valid swipe
   maxSwipeTime: 300,        // Maximum time in ms for a valid swipe
-  preventScroll: true       // Prevent vertical scrolling during horizontal swipes
+  preventScroll: true,      // Prevent vertical scrolling during horizontal swipes
+  excludeSelectors: []      // Selectors to exclude from swipe detection
 };
 
 export function setupSwipeGestures(
@@ -45,6 +47,18 @@ export function setupSwipeGestures(
   }
 
   function handleTouchStart(event: TouchEvent) {
+    // Check if touch started on an excluded element
+    if (finalConfig.excludeSelectors && finalConfig.excludeSelectors.length > 0) {
+      const target = event.target as HTMLElement;
+      for (const selector of finalConfig.excludeSelectors) {
+        if (target.closest(selector)) {
+          // Touch started on excluded element, ignore this gesture
+          startTouch = null;
+          return;
+        }
+      }
+    }
+    
     startTouch = getTouchPoint(event);
     isHorizontalSwipe = false;
     callbacks.onSwipeStart?.(event);
