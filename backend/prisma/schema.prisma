@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Configuração de Criptomoedas
+model CryptoConfig {
+  id            String   @id @default(uuid())
+  symbol        String   @unique // BTC, ETH, SOL
+  name          String   // Bitcoin, Ethereum
+  binanceSymbol String   @unique // BTCUSDT
+  taapiSymbol   String   // BTC/USDT
+  icon          String
+  color         String
+  precision     Int
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  marketData  MarketData[]
+  indicators  Indicator[]
+  futuresData FuturesData[]
+  ohlcv       OHLCV[]
+
+  @@map("crypto_configs")
+}
+
+// Dados de Mercado (Snapshot Atual)
+model MarketData {
+  id             String       @id @default(uuid())
+  cryptoConfigId String
+  cryptoConfig   CryptoConfig @relation(fields: [cryptoConfigId], references: [id], onDelete: Cascade)
+
+  // Preço e Volume Atual
+  price         Decimal @db.Decimal(20, 8)
+  volume24h     Decimal @db.Decimal(20, 2)
+  percentChange Decimal @db.Decimal(10, 4)
+  volumePerHour Decimal @db.Decimal(20, 2)
+
+  // Timeframes calculados (JSON para flexibilidade)
+  timeframes   Json // { "10m": {...}, "1h": {...}, "4h": {...}, "1d": {...}, "1w": {...} }
+  recentPrices Json // Array dos últimos 10 preços
+
+  timestamp DateTime @default(now())
+
+  @@index([cryptoConfigId, timestamp])
+  @@map("market_data")
+}
+
+// OHLCV (Candlesticks) - Dados Históricos
+model OHLCV {
+  id             String       @id @default(uuid())
+  cryptoConfigId String
+  cryptoConfig   CryptoConfig @relation(fields: [cryptoConfigId], references: [id], onDelete: Cascade)
+  interval       String // 1m, 5m, 15m, 1h, 4h, 1d, 1w
+
+  openTime  DateTime
+  open      Decimal  @db.Decimal(20, 8)
+  high      Decimal  @db.Decimal(20, 8)
+  low       Decimal  @db.Decimal(20, 8)
+  close     Decimal  @db.Decimal(20, 8)
+  volume    Decimal  @db.Decimal(20, 8)
+  closeTime DateTime
+
+  quoteVolume Decimal @db.Decimal(20, 2)
+  trades      Int
+
+  @@unique([cryptoConfigId, interval, openTime])
+  @@index([cryptoConfigId, interval, openTime(sort: Desc)])
+  @@map("ohlcv")
+}
+
+// Indicadores Técnicos
+model Indicator {
+  id             String       @id @default(uuid())
+  cryptoConfigId String
+  cryptoConfig   CryptoConfig @relation(fields: [cryptoConfigId], references: [id], onDelete: Cascade)
+  interval       String // 1h, 4h, 1d, 1w
+
+  // Todos os indicadores em JSON para flexibilidade
+  data  Json // { macd: {...}, rsi: 58, atr: 1234, sma20: 66500, ... }
+  trend String // bullish, bearish, neutral
+
+  timestamp DateTime @default(now())
+
+  @@index([cryptoConfigId, interval, timestamp(sort: Desc)])
+  @@map("indicators")
+}
+
+// Dados de Futures
+model FuturesData {
+  id             String       @id @default(uuid())
+  cryptoConfigId String
+  cryptoConfig   CryptoConfig @relation(fields: [cryptoConfigId], references: [id], onDelete: Cascade)
+
+  // Funding Rate
+  fundingRate        Decimal?  @db.Decimal(10, 8)
+  fundingRatePercent Decimal?  @db.Decimal(10, 4)
+  nextFundingTime    DateTime?
+
+  // Open Interest
+  openInterest      Decimal? @db.Decimal(20, 2)
+  openInterestValue Decimal? @db.Decimal(20, 2)
+
+  // Long/Short Ratios (JSON para flexibilidade)
+  longShortData Json? // { accounts: {...}, topTraders: {...} }
+
+  timestamp DateTime @default(now())
+
+  @@index([cryptoConfigId, timestamp(sort: Desc)])
+  @@map("futures_data")
+}
+
+// Indicadores de Mercado Global
+model MarketIndicator {
+  id String @id @default(uuid())
+
+  // Fear & Greed
+  fearGreedValue Int
+  fearGreedClass String
+  fearGreedChange Int?
+
+  // BTC Dominance
+  btcDominance    Decimal @db.Decimal(10, 4)
+  ethDominance    Decimal @db.Decimal(10, 4)
+  totalMarketCap  Decimal @db.Decimal(20, 2)
+  total24hVolume  Decimal @db.Decimal(20, 2)
+
+  timestamp DateTime @default(now())
+
+  @@index([timestamp(sort: Desc)])
+  @@map("market_indicators")
+}
+
+// Triple Screen Analysis Results
+model TripleScreenAnalysis {
+  id             String @id @default(uuid())
+  cryptoConfigId String
+
+  screen1 Json // { interval: "1w", trend: "bullish", indicators: {...} }
+  screen2 Json // { interval: "1d", trend: "bullish", indicators: {...} }
+  screen3 Json // { interval: "4h", trend: "bullish", indicators: {...} }
+
+  recommendation String  @default("HOLD") // BUY, SELL, HOLD
+  confidence     Decimal @db.Decimal(5, 2) // 0-100
+
+  timestamp DateTime @default(now())
+
+  @@index([cryptoConfigId, timestamp(sort: Desc)])
+  @@map("triple_screen_analysis")
+}
