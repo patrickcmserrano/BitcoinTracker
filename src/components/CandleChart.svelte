@@ -43,6 +43,9 @@ let showRSI = defaultOscillator === 'RSI';
 let macdReady = false; // Flag para indicar quando o MACD está pronto
 let rsiReady = false; // Flag para indicar quando o RSI está pronto
 
+// Estado de loading
+let isLoading = false;
+
 // Estado de maximização
 let isMaximized = false;
 let maximizedContainer: HTMLDivElement;
@@ -53,6 +56,9 @@ let resizeObserver: ResizeObserver | null = null;
 // Variáveis para rastrear mudanças nas props
 let previousSymbol = symbol;
 let previousInterval = interval;
+
+// Timeout para debounce de atualizações de indicadores
+let indicatorUpdateTimeout: number | null = null;
 
 // Lista de timeframes disponíveis (mesmo do rastreador)
 const timeframes = [
@@ -88,6 +94,42 @@ function changeTimeframe(timeframe: string) {
 // Estado para preservar dados do gráfico durante transições
 let chartData: { candlestickData: CandlestickData[] } | null = null;
 let currentTimeRange: LogicalRange | null = null;
+
+// Número de candles a exibir por padrão (ajusta o zoom)
+const DEFAULT_VISIBLE_CANDLES = 80;
+
+// Função para definir zoom exibindo um número específico de candles
+function setVisibleCandles(numCandles: number = DEFAULT_VISIBLE_CANDLES) {
+  if (!chart) return;
+  
+  try {
+    const timeScale = chart.timeScale();
+    const logicalRange = timeScale.getVisibleLogicalRange();
+    
+    if (!logicalRange) {
+      console.log('Nenhum range disponível, usando fitContent');
+      timeScale.fitContent();
+      return;
+    }
+    
+    // Calcular o range lógico para exibir o número desejado de candles
+    // Exibe os candles mais recentes
+    const to = logicalRange.to;
+    const from = Math.max(0, to - numCandles);
+    
+    console.log(`Ajustando zoom para exibir ${numCandles} candles (${from} to ${to})`);
+    
+    // Aplicar o range visível
+    timeScale.setVisibleLogicalRange({
+      from,
+      to
+    });
+  } catch (error) {
+    console.warn('Erro ao ajustar zoom de candles:', error);
+    // Fallback para fitContent se houver erro
+    chart?.timeScale().fitContent();
+  }
+}
 
 // Função para atualizar cores do gráfico baseado no tema
 function updateChartColors() {
@@ -132,8 +174,8 @@ function initChart(container?: HTMLDivElement) {
   const targetContainer = container || chartContainer;
   if (!targetContainer) return;
 
-  // Configuração do gráfico com altura responsiva baseada no container
-  const containerHeight = targetContainer.clientHeight || 400;
+  // Configuração do gráfico com altura fixa de 600px (ou altura total se maximizado)
+  const containerHeight = isMaximized ? targetContainer.clientHeight : 600;
   
   // Detectar se está em modo escuro
   const isDarkMode = document.documentElement.classList.contains('dark');
@@ -170,7 +212,7 @@ function initChart(container?: HTMLDivElement) {
       borderColor: colors.borderColor,
       scaleMargins: {
         top: 0.1,
-        bottom: showMACD ? 0.4 : 0.1, // Deixar espaço para MACD se ativo
+        bottom: showMACD || showRSI ? 0.35 : 0.1, // Deixar espaço para indicadores com respiro
       },
     },
     timeScale: {
@@ -266,7 +308,7 @@ function addMacdSeries() {
   // DEPOIS de criar as séries, configurar o price scale para posicionar o MACD na parte inferior
   chart.priceScale('macd').applyOptions({
     scaleMargins: {
-      top: 0.7, // MACD ocupa os 30% inferiores do gráfico
+      top: 0.75, // MACD ocupa os 25% inferiores do gráfico (mais espaço de respiro)
       bottom: 0,
     },
   });
@@ -324,7 +366,7 @@ function addRsiSeries() {
   // Configurar o price scale do RSI para posicionar na parte inferior
   chart.priceScale('rsi').applyOptions({
     scaleMargins: {
-      top: 0.7, // RSI ocupa os 30% inferiores do gráfico
+      top: 0.75, // RSI ocupa os 25% inferiores do gráfico (mais espaço de respiro)
       bottom: 0,
     },
   });
@@ -637,6 +679,35 @@ async function updateMacdChart() {
 }
 
 /**
+ * Atualiza todos os indicadores ativos de uma vez
+ */
+async function updateAllActiveIndicators() {
+  console.log('🔄 Atualizando todos os indicadores ativos...');
+  
+  const promises = [];
+  
+  // Atualizar indicadores de linha (SMA, EMA, Bollinger)
+  if (showSMA || showEMA || showBollinger) {
+    promises.push(updateIndicatorSeries());
+  }
+  
+  // Atualizar MACD
+  if (showMACD && macdHistogramSeries) {
+    promises.push(updateMacdChart());
+  }
+  
+  // Atualizar RSI
+  if (showRSI && rsiSeries) {
+    promises.push(updateRsiChart());
+  }
+  
+  // Executar todas as atualizações em paralelo
+  await Promise.all(promises);
+  
+  console.log('✅ Todos os indicadores atualizados');
+}
+
+/**
  * Atualiza o gráfico RSI
  */
 async function updateRsiChart() {
@@ -731,6 +802,14 @@ $: if (showRSI && chart) {
 
 
 async function loadHistoricalData() {
+  // Ativar loading ANTES de qualquer operação (se ainda não estiver ativo)
+  const wasLoading = isLoading;
+  if (!wasLoading) {
+    isLoading = true;
+    // Aguardar um frame para garantir que o loading seja renderizado
+    await new Promise(resolve => requestAnimationFrame(resolve));
+  }
+  
   try {
     console.log(`Loading historical data for ${symbol} with interval ${interval}`);
     
@@ -760,20 +839,16 @@ async function loadHistoricalData() {
       lastCandle = formattedData[formattedData.length - 1];
     }
 
-    // Ajustar a visualização
+    // Ajustar a visualização com número fixo de candles
     if (chart) {
-      chart.timeScale().fitContent();
+      // Usar requestAnimationFrame para evitar flickering
+      requestAnimationFrame(() => {
+        setVisibleCandles(DEFAULT_VISIBLE_CANDLES);
+      });
     }
     
-    // Atualizar indicadores padrão se estiverem ativos
-    if (showMACD && macdHistogramSeries) {
-      console.log('📊 Atualizando MACD após carregar dados históricos');
-      await updateMacdChart();
-    }
-    if (showRSI && rsiSeries) {
-      console.log('📈 Atualizando RSI após carregar dados históricos');
-      await updateRsiChart();
-    }
+    // Atualizar todos os indicadores ativos após carregar dados
+    await updateAllActiveIndicators();
     
     // Conectar ao WebSocket após carregar o histórico
     connectWebSocket();
@@ -781,6 +856,10 @@ async function loadHistoricalData() {
     console.error('Erro ao carregar dados históricos:', error);
     // Tentar conectar ao WebSocket mesmo se falhar o histórico
     connectWebSocket();
+  } finally {
+    // Aguardar um pouco antes de remover o loading para suavizar a transição
+    await new Promise(resolve => setTimeout(resolve, 200));
+    isLoading = false;
   }
 }
 
@@ -917,8 +996,14 @@ function handleKlineData(data: any) {
 }
 
 // Função para reinicializar o gráfico e os dados
-function reinitializeChart() {
+async function reinitializeChart() {
   console.log(`Reinitializing chart for ${symbol} with interval ${interval}`);
+  
+  // ATIVAR LOADING IMEDIATAMENTE ANTES DE QUALQUER MUDANÇA
+  isLoading = true;
+  
+  // Aguardar um frame para o loading ser renderizado
+  await new Promise(resolve => requestAnimationFrame(resolve));
   
   // Desconectar WebSocket atual de forma limpa
   disconnectWebSocket();
@@ -936,9 +1021,10 @@ function reinitializeChart() {
   setTimeout(() => {
     if (!isDestroyed) {
       // Recarregar dados históricos e reconectar WebSocket
+      // O loadHistoricalData já gerencia o isLoading, então não fazemos nada aqui
       loadHistoricalData();
     }
-  }, 500);
+  }, 100);
 }
 
 // Função para salvar o estado atual do gráfico
@@ -963,7 +1049,7 @@ function saveChartState() {
 }
 
 // Função para restaurar o estado do gráfico
-function restoreChartState() {
+async function restoreChartState() {
   if (chart && chartData && candleSeries) {
     try {
       // Recriar série com os dados salvos
@@ -975,12 +1061,20 @@ function restoreChartState() {
       if (currentTimeRange) {
         chart.timeScale().setVisibleLogicalRange(currentTimeRange);
       } else {
-        chart.timeScale().fitContent();
+        // Usar zoom padronizado ao invés de fitContent
+        requestAnimationFrame(() => {
+          setVisibleCandles(DEFAULT_VISIBLE_CANDLES);
+        });
       }
+      
+      // Atualizar todos os indicadores ativos após restaurar
+      await updateAllActiveIndicators();
     } catch (error) {
       console.warn('Erro ao restaurar estado do gráfico:', error);
-      // Fallback: ajustar conteúdo
-      chart.timeScale().fitContent();
+      // Fallback: usar zoom padronizado
+      requestAnimationFrame(() => {
+        setVisibleCandles(DEFAULT_VISIBLE_CANDLES);
+      });
     }
   }
 }
@@ -1189,10 +1283,22 @@ onDestroy(() => {
   
   <!-- Container do gráfico normal -->
   {#if !isMaximized}
-    <div 
-      bind:this={chartContainer}
-      class="w-full h-full min-h-[700px] rounded"
-    ></div>
+    <div class="relative w-full h-[600px]">
+      <div 
+        bind:this={chartContainer}
+        class="w-full h-full rounded"
+      ></div>
+      
+      <!-- Loading overlay -->
+      {#if isLoading}
+        <div class="loading-overlay">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p class="loading-text">Carregando dados...</p>
+          </div>
+        </div>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -1296,12 +1402,24 @@ onDestroy(() => {
       </div>
       
       <!-- Container do gráfico maximizado (agora inclui MACD integrado) -->
-      <div 
-        bind:this={maximizedContainer}
-        class="maximized-chart"
-        role="img"
-        aria-label={`Gráfico de candlestick para ${symbol} no intervalo ${interval}`}
-      ></div>
+      <div class="relative maximized-chart">
+        <div 
+          bind:this={maximizedContainer}
+          class="w-full h-full"
+          role="img"
+          aria-label={`Gráfico de candlestick para ${symbol} no intervalo ${interval}`}
+        ></div>
+        
+        <!-- Loading overlay para modo maximizado -->
+        {#if isLoading}
+          <div class="loading-overlay">
+            <div class="loading-spinner">
+              <div class="spinner"></div>
+              <p class="loading-text">Carregando dados...</p>
+            </div>
+          </div>
+        {/if}
+      </div>
     </div>
   </div>
 {/if}
@@ -1574,6 +1692,64 @@ onDestroy(() => {
     to {
       transform: scale(1);
       opacity: 1;
+    }
+  }
+  
+  /* Loading overlay */
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #ffffff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    border-radius: 4px;
+    animation: fadeIn 0.2s ease-in;
+  }
+  
+  :global(.dark) .loading-overlay {
+    background: #1f2937;
+  }
+  
+  .loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(59, 130, 246, 0.2);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  
+  :global(.dark) .spinner {
+    border-color: rgba(96, 165, 250, 0.2);
+    border-top-color: #60a5fa;
+  }
+  
+  .loading-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #3b82f6;
+    margin: 0;
+  }
+  
+  :global(.dark) .loading-text {
+    color: #60a5fa;
+  }
+  
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
     }
   }
 </style>
