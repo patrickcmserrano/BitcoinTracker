@@ -63,7 +63,7 @@
   <div class="space-y-2">
     {#if atr14Daily !== undefined}
       <div class="flex items-baseline gap-2">
-        <span class="text-2xl font-bold text-primary-600-300-token">
+        <span class="text-2xl font-bold text-primary-700 dark:text-primary-300">
           ${formatATR(atr14Daily)}
         </span>
         <span class="text-sm text-surface-600-300-token">

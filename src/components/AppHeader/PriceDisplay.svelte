@@ -18,9 +18,9 @@
 
   // Função para obter cor da variação percentual
   function getPercentChangeColor(change: number): string {
-    if (change > 0) return 'text-success-500';
-    if (change < 0) return 'text-error-500';
-    return 'text-gray-500';
+    if (change > 0) return 'text-green-700 dark:text-green-400';
+    if (change < 0) return 'text-red-700 dark:text-red-400';
+    return 'text-gray-600 dark:text-gray-400';
   }
 
   // Função para obter dados do timeframe ativo
@@ -180,14 +180,14 @@
   .crypto-name {
     font-size: 1rem;
     font-weight: 800;
-    color: var(--crypto-color);
+    color: var(--color-surface-700);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   :global(.dark) .crypto-name {
-    color: var(--crypto-color);
+    color: var(--color-surface-200);
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   }
 

@@ -38,17 +38,17 @@
 
   function getColorClass(value: number, type: 'fear-greed' | 'dominance'): string {
     if (type === 'fear-greed') {
-      if (value <= 25) return 'text-red-600 dark:text-red-400';
-      if (value <= 45) return 'text-orange-600 dark:text-orange-400';
-      if (value <= 55) return 'text-yellow-600 dark:text-yellow-400';
-      if (value <= 75) return 'text-green-600 dark:text-green-400';
-      return 'text-emerald-600 dark:text-emerald-400';
+      if (value <= 25) return 'text-red-700 dark:text-red-400';
+      if (value <= 45) return 'text-orange-700 dark:text-orange-400';
+      if (value <= 55) return 'text-yellow-700 dark:text-yellow-400';
+      if (value <= 75) return 'text-green-700 dark:text-green-400';
+      return 'text-emerald-700 dark:text-emerald-400';
     }
     
     // Dominance: vermelho se baixo (<40%), verde se alto (>50%)
-    if (value < 40) return 'text-red-600 dark:text-red-400';
-    if (value > 50) return 'text-green-600 dark:text-green-400';
-    return 'text-yellow-600 dark:text-yellow-400';
+    if (value < 40) return 'text-red-700 dark:text-red-400';
+    if (value > 50) return 'text-green-700 dark:text-green-400';
+    return 'text-yellow-700 dark:text-yellow-400';
   }
 
   function formatTimeSinceUpdate(): string {
@@ -70,9 +70,9 @@
 
   function getChangeClass(change: number | undefined): string {
     if (change === undefined || change === null) return '';
-    if (change > 0) return 'text-green-600 dark:text-green-400';
-    if (change < 0) return 'text-red-600 dark:text-red-400';
-    return 'text-gray-600 dark:text-gray-400';
+    if (change > 0) return 'text-green-700 dark:text-green-400';
+    if (change < 0) return 'text-red-700 dark:text-red-400';
+    return 'text-gray-700 dark:text-gray-400';
   }
 
   function getChangeIcon(change: number | undefined): string {
@@ -196,7 +196,7 @@
           <span class="indicator-icon">💰</span>
           <h3 class="indicator-title">Market Cap Total</h3>
         </div>
-        <div class="indicator-value text-blue-600 dark:text-blue-400">
+        <div class="indicator-value text-blue-700 dark:text-blue-400">
           {formatLargeNumber(indicators.btcDominance.totalMarketCap)}
         </div>
         <div class="indicator-label">

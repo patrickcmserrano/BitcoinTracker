@@ -114,11 +114,11 @@
 
   function getTrendColor(trend: string): string {
     const colors: Record<string, string> = {
-      bullish: 'text-green-600 dark:text-green-400',
-      bearish: 'text-red-600 dark:text-red-400',
-      neutral: 'text-yellow-600 dark:text-yellow-400'
+      bullish: 'text-green-700 dark:text-green-400',
+      bearish: 'text-red-700 dark:text-red-400',
+      neutral: 'text-yellow-700 dark:text-yellow-400'
     };
-    return colors[trend] || 'text-gray-600';
+    return colors[trend] || 'text-gray-700';
   }
 
   function formatTimeSinceUpdate(): string {
@@ -338,7 +338,7 @@
     border-radius: 8px;
     margin-bottom: 16px;
     font-size: 0.75rem;
-    color: var(--color-surface-600);
+    color: var(--color-surface-700);
     border: 1px solid var(--color-surface-300);
   }
 
@@ -387,7 +387,7 @@
 
   .last-update {
     font-size: 0.75rem;
-    color: var(--color-surface-600);
+    color: var(--color-surface-700);
   }
 
   :global(.dark) .last-update {
@@ -445,7 +445,7 @@
   .loading, .error {
     text-align: center;
     padding: 40px;
-    color: var(--color-surface-600);
+    color: var(--color-surface-700);
   }
 
   :global(.dark) .loading,
@@ -509,7 +509,7 @@
 
   .trend-title {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: #4b5563;
     margin: 0 0 4px 0;
   }
 
@@ -623,7 +623,7 @@
     display: flex;
     justify-content: space-between;
     font-size: 0.75rem;
-    color: #6b7280;
+    color: #4b5563;
   }
 
   .atr-percent {
@@ -675,7 +675,7 @@
   }
 
   .value.negative {
-    color: #ef4444;
+    color: #b91c1c;
   }
 
   .ma-value {

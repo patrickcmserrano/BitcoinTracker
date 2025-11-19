@@ -45,9 +45,6 @@
     // Inicializa o tema
     setTheme(storedMode);
   });
-
-  // Garante que o componente exporte algo
-  export {};
 </script>
 
 <svelte:head>
@@ -73,7 +70,8 @@
   </script>
 </svelte:head>
 
-<div aria-label="Theme toggle" class="theme-toggle-wrapper">  <button 
+<div class="theme-toggle-wrapper">
+  <button 
     type="button"
     class="theme-toggle"
     id="theme-toggle"
@@ -81,17 +79,24 @@
     aria-label="Alternar tema claro/escuro"
     onclick={handleThemeChange}
   >
-    <Switch
-      name="theme"
-      checked={isDarkMode}
-    >
-      {#snippet inactiveChild()}
-        <IconMoon size="14" />
-      {/snippet}
-      {#snippet activeChild()}
-        <IconSun size="14" />
-      {/snippet}
-    </Switch>
+    <label class="flex items-center cursor-pointer" for="theme-switch-input">
+      <span class="sr-only">Alternar tema</span>
+      <div class="pointer-events-none">
+        <Switch
+          name="theme"
+          checked={isDarkMode}
+          active="bg-primary-500"
+          inactive="bg-surface-300-600-token"
+        >
+          {#snippet inactiveChild()}
+            <IconMoon size="14" />
+          {/snippet}
+          {#snippet activeChild()}
+            <IconSun size="14" />
+          {/snippet}
+        </Switch>
+      </div>
+    </label>
   </button>
 </div>
 

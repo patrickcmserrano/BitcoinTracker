@@ -1224,7 +1224,7 @@ onDestroy(() => {
 <div class="w-full">
   <!-- Cabeçalho do gráfico com botão maximizar -->
   <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
-    <h3 class="text-lg font-semibold text-primary-600 dark:text-primary-400">
+    <h3 class="text-lg font-semibold text-primary-700 dark:text-primary-300">
       {symbol} - {interval}
     </h3>
     
@@ -1317,7 +1317,7 @@ onDestroy(() => {
       <div class="maximized-header">        <div class="flex items-center gap-2 flex-1">
           <h2 
             id="maximized-chart-title"
-            class="text-lg font-bold text-primary-600 dark:text-primary-300"
+            class="text-lg font-bold text-primary-700 dark:text-primary-300"
           >
             {symbol} - {interval}
           </h2>
