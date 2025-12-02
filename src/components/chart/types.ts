@@ -34,3 +34,24 @@ export interface ChartSeries {
     bollingerMiddleSeries: ISeriesApi<'Line'> | null;
     bollingerLowerSeries: ISeriesApi<'Line'> | null;
 }
+
+// Drawing Tool Types
+export type DrawingMode = 'NONE' | 'HORIZONTAL_LINE' | 'LINE_AB';
+
+export interface DrawingLine {
+    id: string;
+    type: 'horizontal' | 'line_ab';
+    price: number;
+    time?: number; // For line_ab, start time
+    price2?: number; // For line_ab, end price
+    time2?: number; // For line_ab, end time
+    color: string;
+}
+
+export interface DrawingState {
+    mode: DrawingMode;
+    lines: DrawingLine[];
+    activeDrawing: Partial<DrawingLine> | null;
+    selectedLineId?: string | null;
+}
+

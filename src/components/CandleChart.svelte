@@ -10,10 +10,11 @@
   import ChartHeader from "./chart/ChartHeader.svelte";
   import ChartControls from "./chart/ChartControls.svelte";
   import LoadingOverlay from "./chart/LoadingOverlay.svelte";
+  import DrawingToolbar from "./chart/DrawingToolbar.svelte";
   import { ChartService } from "./chart/services/chartService";
   import { IndicatorService } from "./chart/services/indicatorService";
   import { DataService } from "./chart/services/dataService";
-  import type { IndicatorState } from "./chart/types";
+  import type { IndicatorState, DrawingMode } from "./chart/types";
 
   // Props
   export let symbol = "BTCUSDT";
@@ -32,6 +33,10 @@
   let chartService: ChartService | null = null;
   let indicatorService: IndicatorService | null = null;
   let dataService: DataService | null = null;
+
+  // Drawing State
+  let drawingMode: DrawingMode = "NONE";
+  let isDrawingActive = false; // Tracks if first point of line_ab is set
 
   // Chart State
   let lastCandle: CandlestickData | null = null;
@@ -63,6 +68,7 @@
       const candleSeries = chartService.getCandleSeries();
       if (candleSeries) {
         candleSeries.update(candle);
+        chartService.getDrawingService()?.updateLastCandle(candle);
       }
     }
     lastCandle = candle;
@@ -110,6 +116,18 @@
 
     // Update Indicators
     await updateIndicators();
+
+    // Enable Drawing (in both modes)
+    if (chartService) {
+      const drawingService = chartService.enableDrawing(symbol, interval);
+      drawingService.setOnChangeCallback(() => {
+        updateDrawingActiveState();
+      });
+      drawingService.setOnModeChangeCallback((mode) => {
+        drawingMode = mode;
+      });
+      drawingService.updateData(data);
+    }
 
     // Connect WebSocket
     dataService.connectWebSocket(symbol, interval);
@@ -179,8 +197,47 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === "Escape" && isMaximized) {
-      toggleMaximize();
+    if (event.key === "Escape") {
+      if (isMaximized) {
+        toggleMaximize();
+      } else if (drawingMode !== "NONE") {
+        // Cancel active drawing
+        handleDrawingModeChange("NONE");
+      }
+    } else if (event.key === "Delete" || event.key === "Backspace") {
+      if (chartService) {
+        chartService.getDrawingService()?.removeSelectedLine();
+      }
+    }
+  }
+
+  function handleDrawingModeChange(mode: DrawingMode) {
+    drawingMode = mode;
+    if (chartService) {
+      const drawingService = chartService.getDrawingService();
+      if (drawingService) {
+        drawingService.setMode(mode);
+        // Check if there's an active drawing in progress
+        updateDrawingActiveState();
+      }
+    }
+  }
+
+  function updateDrawingActiveState() {
+    if (chartService) {
+      const drawingService = chartService.getDrawingService();
+      if (drawingService) {
+        isDrawingActive = drawingService.hasActiveDrawing();
+      }
+    }
+  }
+
+  function handleClearAllDrawings() {
+    if (chartService) {
+      const drawingService = chartService.getDrawingService();
+      if (drawingService && confirm("Clear all drawings?")) {
+        drawingService.clearAll();
+      }
     }
   }
 
@@ -191,6 +248,12 @@
   $: if (symbol !== previousSymbol || interval !== previousInterval) {
     previousSymbol = symbol;
     previousInterval = interval;
+
+    // Update drawing service symbol/interval
+    if (chartService) {
+      chartService.updateDrawingSymbolInterval(symbol, interval);
+    }
+
     cleanup();
     setTimeout(init, 0);
   }
@@ -238,6 +301,14 @@
   </div>
 
   {#if !isMaximized}
+    <!-- Drawing Toolbar -->
+    <DrawingToolbar
+      currentMode={drawingMode}
+      {isDrawingActive}
+      onModeChange={handleDrawingModeChange}
+      onClearAll={handleClearAllDrawings}
+    />
+
     <div class="relative w-full h-[600px]">
       <div bind:this={chartContainer} class="w-full h-full rounded"></div>
       <LoadingOverlay {isLoading} />
@@ -246,16 +317,16 @@
 </div>
 
 {#if isMaximized}
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <div
     class="maximized-overlay"
     role="dialog"
     aria-modal="true"
     aria-labelledby="maximized-chart-title"
-    onclick={toggleMaximize}
-    onkeydown={(e) => e.key === "Escape" && toggleMaximize()}
+    onclick={(e) => e.target === e.currentTarget && toggleMaximize()}
     tabindex="-1"
   >
-    <div class="maximized-content" onclick={(e) => e.stopPropagation()}>
+    <div class="maximized-content" role="group" tabindex="-1">
       <div class="maximized-header">
         <ChartHeader {symbol} {interval} isMaximized={true} />
 
@@ -269,9 +340,10 @@
           />
 
           <div
-            class="flex items-center gap-1.5 mx-1.5 border-l border-gray-300 dark:border-gray-600 pl-2"
+            class="flex items-center gap-1.5 mx-1.5 border-l border-gray-300 dark:border-gray-600 pl-2 timeframe-section"
           >
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-300"
+            <span
+              class="text-xs font-medium text-gray-600 dark:text-gray-300 timeframe-label"
               >TF:</span
             >
             <div class="flex gap-0.5">
@@ -302,6 +374,18 @@
         </div>
       </div>
 
+      <!-- Drawing Toolbar (Maximized) -->
+      <div
+        class="px-2 py-1 bg-surface-100 dark:bg-surface-800 border-b border-surface-300 dark:border-surface-600"
+      >
+        <DrawingToolbar
+          currentMode={drawingMode}
+          {isDrawingActive}
+          onModeChange={handleDrawingModeChange}
+          onClearAll={handleClearAllDrawings}
+        />
+      </div>
+
       <div class="relative maximized-chart">
         <div
           bind:this={maximizedContainer}
@@ -324,7 +408,7 @@
     width: 100vw;
     height: 100vh;
     background: rgba(0, 0, 0, 0.85);
-    z-index: 1000;
+    z-index: 1100;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -356,11 +440,65 @@
     border-bottom: 1px solid var(--color-surface-300, #d1d5db);
     min-height: 40px;
     flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   :global(.dark) .maximized-header {
     background: var(--color-surface-800, #1f2937);
     border-bottom-color: var(--color-surface-600, #4b5563);
+  }
+
+  /* Mobile responsive styles for maximized header */
+  @media (max-width: 768px) {
+    .maximized-header {
+      padding: 6px 8px;
+      gap: 0.25rem;
+    }
+
+    /* Ensure close button is always visible and accessible */
+    .close-btn {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      font-size: 16px;
+      margin-left: auto !important;
+      order: 999; /* Ensure it appears last */
+    }
+
+    /* Make timeframe section more compact on mobile */
+    .maximized-header > div:last-child {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      align-items: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .maximized-header {
+      padding: 4px 6px;
+    }
+
+    /* Even more compact on very small screens */
+    .close-btn {
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+    }
+
+    /* Hide TF label on very small screens to save space */
+    .timeframe-label {
+      display: none;
+    }
+
+    /* Reduce timeframe section spacing */
+    .timeframe-section {
+      margin-left: 0.25rem !important;
+      margin-right: 0.25rem !important;
+      padding-left: 0.25rem !important;
+      gap: 0.25rem !important;
+    }
   }
 
   .maximized-chart {
@@ -419,5 +557,22 @@
   :global(.dark) .timeframe-btn-maximized.active {
     background: #2563eb;
     color: white;
+  }
+
+  /* Mobile responsive styles for timeframe buttons */
+  @media (max-width: 768px) {
+    .timeframe-btn-maximized {
+      padding: 3px 5px;
+      font-size: 0.65rem;
+      min-width: 32px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .timeframe-btn-maximized {
+      padding: 4px 4px;
+      font-size: 0.6rem;
+      min-width: 28px;
+    }
   }
 </style>
