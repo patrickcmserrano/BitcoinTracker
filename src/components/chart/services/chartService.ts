@@ -1,10 +1,16 @@
-import { createChart, ColorType, CandlestickSeries, type IChartApi, type ISeriesApi, type CandlestickData, type LogicalRange } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, type IChartApi, type ISeriesApi, type CandlestickData, type LogicalRange, type MouseEventParams } from 'lightweight-charts';
 import type { ChartColors } from '../types';
+import { DrawingService } from './drawingService';
+
 
 export class ChartService {
     private chart: IChartApi | null = null;
     private candleSeries: ISeriesApi<'Candlestick'> | null = null;
     private resizeObserver: ResizeObserver | null = null;
+    private drawingService: DrawingService | null = null;
+    private clickHandler: ((param: MouseEventParams) => void) | null = null;
+    private mouseMoveHandler: ((param: MouseEventParams) => void) | null = null;
+
 
     constructor(
         private container: HTMLElement,
@@ -47,7 +53,7 @@ export class ChartService {
                 horzLines: { color: colors.gridColor },
             },
             crosshair: {
-                mode: 1,
+                mode: 0, // 0 = Normal (free), 1 = Magnet (snap to data points)
             },
             rightPriceScale: {
                 borderColor: colors.borderColor,
@@ -107,7 +113,28 @@ export class ChartService {
 
         this.setupResizeObserver();
         this.onChartCreated(this.chart, this.candleSeries);
+        this.setupDrawingEventHandlers();
     }
+
+    private setupDrawingEventHandlers() {
+        if (!this.chart) return;
+
+        this.clickHandler = (param: MouseEventParams) => {
+            if (this.drawingService) {
+                this.drawingService.handleChartClick(param);
+            }
+        };
+
+        this.mouseMoveHandler = (param: MouseEventParams) => {
+            if (this.drawingService) {
+                this.drawingService.handleMouseMove(param);
+            }
+        };
+
+        this.chart.subscribeClick(this.clickHandler);
+        this.chart.subscribeCrosshairMove(this.mouseMoveHandler);
+    }
+
 
     private setupResizeObserver() {
         if (this.resizeObserver) {
@@ -169,15 +196,33 @@ export class ChartService {
     }
 
     public destroy() {
+        if (this.chart) {
+            if (this.clickHandler) {
+                this.chart.unsubscribeClick(this.clickHandler);
+            }
+            if (this.mouseMoveHandler) {
+                this.chart.unsubscribeCrosshairMove(this.mouseMoveHandler);
+            }
+        }
+
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
         }
+
+        if (this.drawingService) {
+            this.drawingService.destroy();
+            this.drawingService = null;
+        }
+
         if (this.chart) {
             this.chart.remove();
             this.chart = null;
         }
+
         this.candleSeries = null;
+        this.clickHandler = null;
+        this.mouseMoveHandler = null;
     }
 
     public getCandleSeries(): ISeriesApi<'Candlestick'> | null {
@@ -186,5 +231,23 @@ export class ChartService {
 
     public getChart(): IChartApi | null {
         return this.chart;
+    }
+
+    public enableDrawing(symbol: string, interval: string): DrawingService {
+        if (!this.drawingService && this.chart && this.candleSeries) {
+            this.drawingService = new DrawingService();
+            this.drawingService.init(this.chart, this.candleSeries, symbol, interval);
+        }
+        return this.drawingService!;
+    }
+
+    public getDrawingService(): DrawingService | null {
+        return this.drawingService;
+    }
+
+    public updateDrawingSymbolInterval(symbol: string, interval: string) {
+        if (this.drawingService) {
+            this.drawingService.updateSymbolInterval(symbol, interval);
+        }
     }
 }
