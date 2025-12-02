@@ -118,8 +118,6 @@ export class IndicatorService {
     private updateMACD(times: Time[], indicators: any) {
         if (!this.series.macdHistogramSeries) {
             this.series.macdHistogramSeries = this.chart.addSeries(HistogramSeries, { color: '#26a69a', priceFormat: { type: 'volume' }, priceScaleId: 'macd' });
-            this.series.macdLineSeries = this.chart.addSeries(LineSeries, { color: '#2196F3', lineWidth: 2, priceScaleId: 'macd' });
-            this.series.macdSignalSeries = this.chart.addSeries(LineSeries, { color: '#FF6D00', lineWidth: 2, priceScaleId: 'macd' });
 
             this.chart.priceScale('macd').applyOptions({
                 scaleMargins: { top: 0.75, bottom: 0 },
@@ -127,28 +125,20 @@ export class IndicatorService {
         }
 
         const histogramData: HistogramData[] = [];
-        const macdLineData: LineData[] = [];
-        const signalLineData: LineData[] = [];
         const offset = times.length - indicators.macdHistogram.length;
 
         indicators.macdHistogram.forEach((value: number, i: number) => {
             if (value !== undefined && times[i + offset]) {
                 const time = times[i + offset];
                 histogramData.push({ time, value, color: value >= 0 ? '#26a69a' : '#ef5350' });
-                if (indicators.macdLine[i] !== undefined) macdLineData.push({ time, value: indicators.macdLine[i] });
-                if (indicators.macdSignal[i] !== undefined) signalLineData.push({ time, value: indicators.macdSignal[i] });
             }
         });
 
         this.series.macdHistogramSeries?.setData(histogramData);
-        this.series.macdLineSeries?.setData(macdLineData);
-        this.series.macdSignalSeries?.setData(signalLineData);
     }
 
     private removeMACD() {
         if (this.series.macdHistogramSeries) { this.chart.removeSeries(this.series.macdHistogramSeries); this.series.macdHistogramSeries = null; }
-        if (this.series.macdLineSeries) { this.chart.removeSeries(this.series.macdLineSeries); this.series.macdLineSeries = null; }
-        if (this.series.macdSignalSeries) { this.chart.removeSeries(this.series.macdSignalSeries); this.series.macdSignalSeries = null; }
     }
 
     private async updateRSI(times: Time[], closes: number[]) {

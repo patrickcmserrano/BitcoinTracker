@@ -25,8 +25,6 @@ export interface IndicatorState {
 export interface ChartSeries {
     candleSeries: ISeriesApi<'Candlestick'> | null;
     macdHistogramSeries: ISeriesApi<'Histogram'> | null;
-    macdLineSeries: ISeriesApi<'Line'> | null;
-    macdSignalSeries: ISeriesApi<'Line'> | null;
     rsiSeries: ISeriesApi<'Line'> | null;
     sma20Series: ISeriesApi<'Line'> | null;
     sma50Series: ISeriesApi<'Line'> | null;

@@ -171,8 +171,8 @@
 
   function cleanup() {
     dataService?.disconnectWebSocket();
-    chartService?.destroy();
     indicatorService?.destroy();
+    chartService?.destroy();
     chartService = null;
     indicatorService = null;
     dataService = null;
@@ -192,7 +192,7 @@
     previousSymbol = symbol;
     previousInterval = interval;
     cleanup();
-    init();
+    setTimeout(init, 0);
   }
 
   // Theme observer
@@ -251,11 +251,11 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby="maximized-chart-title"
-    on:click|self={toggleMaximize}
-    on:keydown|self={(e) => e.key === "Escape" && toggleMaximize()}
+    onclick={toggleMaximize}
+    onkeydown={(e) => e.key === "Escape" && toggleMaximize()}
     tabindex="-1"
   >
-    <div class="maximized-content">
+    <div class="maximized-content" onclick={(e) => e.stopPropagation()}>
       <div class="maximized-header">
         <ChartHeader {symbol} {interval} isMaximized={true} />
 
@@ -281,7 +281,7 @@
                   timeframe.id
                     ? 'active'
                     : ''}"
-                  on:click={() =>
+                  onclick={() =>
                     onTimeframeChange && onTimeframeChange(timeframe.id)}
                   title={`Alterar para timeframe ${timeframe.label}`}
                 >
@@ -293,7 +293,7 @@
 
           <button
             class="close-btn ml-2"
-            on:click={toggleMaximize}
+            onclick={toggleMaximize}
             title="Fechar visualização maximizada (ESC)"
             aria-label="Fechar gráfico maximizado"
           >

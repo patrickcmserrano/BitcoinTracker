@@ -19,7 +19,7 @@
         class="{isMaximizedMode
             ? 'indicator-toggle-max'
             : 'indicator-toggle'} {indicators.showSMA ? 'active' : ''}"
-        on:click={() => onToggleIndicator("showSMA")}
+        onclick={() => onToggleIndicator("showSMA")}
         title="Mostrar/Ocultar SMAs"
     >
         SMA
@@ -28,7 +28,7 @@
         class="{isMaximizedMode
             ? 'indicator-toggle-max'
             : 'indicator-toggle'} {indicators.showEMA ? 'active' : ''}"
-        on:click={() => onToggleIndicator("showEMA")}
+        onclick={() => onToggleIndicator("showEMA")}
         title="Mostrar/Ocultar EMAs"
     >
         EMA
@@ -37,7 +37,7 @@
         class="{isMaximizedMode
             ? 'indicator-toggle-max'
             : 'indicator-toggle'} {indicators.showBollinger ? 'active' : ''}"
-        on:click={() => onToggleIndicator("showBollinger")}
+        onclick={() => onToggleIndicator("showBollinger")}
         title="Mostrar/Ocultar Bandas de Bollinger"
     >
         BB
@@ -46,7 +46,7 @@
         class="{isMaximizedMode
             ? 'indicator-toggle-max'
             : 'indicator-toggle'} {indicators.showMACD ? 'active' : ''}"
-        on:click={() => onToggleIndicator("showMACD")}
+        onclick={() => onToggleIndicator("showMACD")}
         title="Mostrar/Ocultar MACD Histograma"
     >
         MACD
@@ -55,7 +55,7 @@
         class="{isMaximizedMode
             ? 'indicator-toggle-max'
             : 'indicator-toggle'} {indicators.showRSI ? 'active' : ''}"
-        on:click={() => onToggleIndicator("showRSI")}
+        onclick={() => onToggleIndicator("showRSI")}
         title="Mostrar/Ocultar RSI"
     >
         RSI
@@ -64,7 +64,7 @@
     {#if !isMaximizedMode}
         <button
             class="maximize-btn"
-            on:click={onMaximize}
+            onclick={onMaximize}
             title={isMaximized ? "Minimizar gráfico" : "Maximizar gráfico"}
         >
             {isMaximized ? "🗗" : "⛶"}

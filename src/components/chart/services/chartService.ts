@@ -61,6 +61,27 @@ export class ChartService {
                 timeVisible: true,
                 secondsVisible: false,
                 barSpacing: this.isMaximized ? 10 : 6,
+                tickMarkFormatter: (time: number, tickMarkType: number, locale: string) => {
+                    const date = new Date(time * 1000);
+                    // Simple logic: if it's a day/month/year tick (type < 3), show date. Otherwise show time.
+                    // This ensures local timezone is used.
+                    if (tickMarkType < 3) {
+                        return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short' }).format(date);
+                    }
+                    return new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(date);
+                },
+            },
+            localization: {
+                locale: navigator.language,
+                dateFormat: 'dd/MM/yyyy',
+                timeFormatter: (time: number) => {
+                    const date = new Date(time * 1000);
+                    return new Intl.DateTimeFormat(navigator.language, {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        // second: '2-digit', // Optional, usually minutes are enough for candles
+                    }).format(date);
+                },
             },
             ...(this.isMaximized && {
                 handleScroll: {
