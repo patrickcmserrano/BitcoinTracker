@@ -1,6 +1,40 @@
 import { getBinanceKlines } from '../../../lib/api';
 import type { Time, CandlestickData } from 'lightweight-charts';
 
+// Interval → hours per candle
+const INTERVAL_HOURS: Record<string, number> = {
+    '1m': 1 / 60,
+    '3m': 3 / 60,
+    '5m': 5 / 60,
+    '15m': 15 / 60,
+    '30m': 30 / 60,
+    '1h': 1,
+    '2h': 2,
+    '4h': 4,
+    '6h': 6,
+    '8h': 8,
+    '12h': 12,
+    '1d': 24,
+    '3d': 72,
+    '1w': 24 * 7,
+    '1M': 24 * 30 // Approximate
+};
+
+// Target: 33 days of historical data for all timeframes
+const TARGET_DAYS = 33;
+const MIN_CANDLES = 300; // Ensure enough for MACD/RSI stabilization
+
+function getCandleLimit(interval: string): number {
+    const hours = INTERVAL_HOURS[interval] || 1;
+    const totalHours = TARGET_DAYS * 24;
+    const timeBasedLimit = Math.ceil(totalHours / hours);
+
+    // Use the greater of time-based or minimum limit, capped at 1000
+    const limit = Math.max(timeBasedLimit, MIN_CANDLES);
+    // Binance has a max limit of 1000 candles per request
+    return Math.min(limit, 1000);
+}
+
 export class DataService {
     private ws: WebSocket | null = null;
     private reconnectTimeout: number | null = null;
@@ -15,16 +49,25 @@ export class DataService {
 
     public async loadHistoricalData(symbol: string, interval: string): Promise<CandlestickData[]> {
         try {
-            const klines = await getBinanceKlines(symbol, interval, 200);
+            const limit = getCandleLimit(interval);
+            const klines = await getBinanceKlines(symbol, interval, limit);
             if (!klines || klines.length === 0) return [];
 
-            return klines.map((k: any[]) => ({
+            const data = klines.map((k: any[]) => ({
                 time: Math.floor(k[0] / 1000) as Time,
                 open: parseFloat(k[1]),
                 high: parseFloat(k[2]),
                 low: parseFloat(k[3]),
                 close: parseFloat(k[4]),
             }));
+
+            if (data.length > 0) {
+                const start = new Date((data[0].time as number) * 1000).toISOString();
+                const end = new Date((data[data.length - 1].time as number) * 1000).toISOString();
+                console.log(`[DataService] Loaded ${data.length} candles for ${interval}. Range: ${start} to ${end}`);
+            }
+
+            return data;
         } catch (error) {
             console.error('Error loading historical data:', error);
             return [];
@@ -32,7 +75,8 @@ export class DataService {
     }
 
     public async getRawKlines(symbol: string, interval: string): Promise<any[]> {
-        return await getBinanceKlines(symbol, interval, 200);
+        const limit = getCandleLimit(interval);
+        return await getBinanceKlines(symbol, interval, limit);
     }
 
     public connectWebSocket(symbol: string, interval: string) {
