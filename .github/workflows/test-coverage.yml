@@ -13,6 +13,8 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.52.0-noble
     steps:
       - uses: actions/checkout@v3
       
@@ -53,9 +55,6 @@ jobs:
         with:
           directory: ./coverage/
           fail_ci_if_error: false
-      
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
       
       - name: Run E2E Tests
         run: npm run e2e
