@@ -72,6 +72,9 @@
       }
     }
     lastCandle = candle;
+
+    // Update indicators with new candle data
+    updateIndicators();
   }
 
   function handleConnectionStatus(connected: boolean) {
