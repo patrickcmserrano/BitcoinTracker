@@ -2,41 +2,24 @@ import { test, expect } from '@playwright/test';
 
 // Helper function to show chart
 async function showChart(page: any) {
-  await page.waitForLoadState('networkidle');
-  
-  // Wait for the button to be present and visible
-  const showChartButton = page.locator('button:has-text("📊 Mostrar Gráfico")');
-  await expect(showChartButton).toBeVisible({ timeout: 15000 });
-    // Try JavaScript click as fallback for Firefox
-  try {
-    await showChartButton.click({ timeout: 5000 });
-  } catch (error) {
-    console.log('Regular click failed, trying JavaScript click');
-    await page.evaluate(() => {
-      // Find button by text content
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const chartButton = buttons.find(btn => btn.textContent?.includes('📊 Mostrar Gráfico'));
-      if (chartButton) {
-        (chartButton as HTMLButtonElement).click();
-      }
-    });
-  }
-  
-  // Wait for the chart container to appear
-  await page.waitForSelector('div[class*="h-[400px]"]', { timeout: 15000 });
+  await page.waitForLoadState('domcontentloaded');
+
+  // Chart is always visible in CryptoTracker, so we just wait for the container
+  // The container has min-h-[500px] in CryptoTracker
+  await page.waitForSelector('div[class*="min-h-[500px]"]', { timeout: 15000 });
 }
 
 test.describe('CandleChart E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Navegar para a página com o componente CandleChart
-    await page.goto('/');
+    await page.goto('./');
   });
 
   test('deve renderizar o gráfico de candles', async ({ page }) => {
     await showChart(page);
-    
+
     // Verificar se o container do gráfico está presente
-    const chartContainer = page.locator('div[class*="h-[400px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
     await expect(chartContainer).toBeVisible();
   });
 
@@ -48,38 +31,38 @@ test.describe('CandleChart E2E Tests', () => {
         [1625097660000, "50500", "52000", "50000", "51500"],
         [1625097720000, "51500", "53000", "51000", "52000"]
       ];
-      
+
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify(mockData)
       });
     });
 
-    await showChart(page);
-    
     // Verificar se a requisição foi feita
-    await page.waitForResponse(response => 
-      response.url().includes('api.binance.com/api/v3/klines') && response.status() === 200
-    );
+    const [response] = await Promise.all([
+      page.waitForResponse(response =>
+        response.url().includes('api.binance.com/api/v3/klines') && response.status() === 200
+      ),
+      showChart(page)
+    ]);
+
+    expect(response.ok()).toBeTruthy();
   });
 
   test('deve estabelecer conexão WebSocket', async ({ page }) => {
-    await showChart(page);
-    
-    // Capturar logs do console
     const logs: string[] = [];
-    page.on('console', msg => {
-      if (msg.type() === 'log') {
-        logs.push(msg.text());
-      }
-    });
+    page.on('console', msg => logs.push(msg.text()));
 
-    // Aguardar conexão WebSocket
-    await page.waitForTimeout(3000);
+    // Reload to ensure we capture startup logs
+    await page.reload();
+    await showChart(page);
+
+    // Wait for WebSocket connection
+    await page.waitForTimeout(5000);
 
     // Verificar se há logs de conexão WebSocket
-    const hasWebSocketLog = logs.some(log => 
-      log.includes('Connecting to WebSocket') || 
+    const hasWebSocketLog = logs.some(log =>
+      log.includes('Connecting to WebSocket') ||
       log.includes('WebSocket connected')
     );
     expect(hasWebSocketLog).toBeTruthy();
@@ -87,17 +70,17 @@ test.describe('CandleChart E2E Tests', () => {
 
   test('deve ser responsivo em diferentes tamanhos de tela', async ({ page }) => {
     await showChart(page);
-    
-    const chartContainer = page.locator('div[class*="h-[400px]"]');
-    
+
+    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+
     // Testar em desktop
     await page.setViewportSize({ width: 1200, height: 800 });
     await expect(chartContainer).toBeVisible();
-    
+
     // Testar em tablet
     await page.setViewportSize({ width: 768, height: 1024 });
     await expect(chartContainer).toBeVisible();
-    
+
     // Testar em mobile
     await page.setViewportSize({ width: 375, height: 667 });
     await expect(chartContainer).toBeVisible();
@@ -115,12 +98,12 @@ test.describe('CandleChart E2E Tests', () => {
         constructor(url: string) {
           super();
           this.url = url;
-          
+
           // Simular conexão bem-sucedida
           setTimeout(() => {
             this.readyState = WebSocket.OPEN;
             this.dispatchEvent(new Event('open'));
-            
+
             // Simular dados de kline a cada 2 segundos
             setInterval(() => {
               const mockKlineData = {
@@ -132,7 +115,7 @@ test.describe('CandleChart E2E Tests', () => {
                   c: (Math.random() * 1000 + 50500).toFixed(2)
                 }
               };
-              
+
               this.dispatchEvent(new MessageEvent('message', {
                 data: JSON.stringify(mockKlineData)
               }));
@@ -145,12 +128,12 @@ test.describe('CandleChart E2E Tests', () => {
           this.dispatchEvent(new CloseEvent('close'));
         }
 
-        send() {}
+        send() { }
       } as any;
     });
 
     await showChart(page);
-    
+
     // Capturar logs para verificar processamento de dados
     const logs: string[] = [];
     page.on('console', msg => {
@@ -163,8 +146,8 @@ test.describe('CandleChart E2E Tests', () => {
     await page.waitForTimeout(6000);
 
     // Verificar se há logs indicando conexão WebSocket
-    const hasWebSocketConnection = logs.some(log => 
-      log.includes('WebSocket connected') || 
+    const hasWebSocketConnection = logs.some(log =>
+      log.includes('WebSocket connected') ||
       log.includes('Connecting to WebSocket')
     );
     expect(hasWebSocketConnection).toBeTruthy();
@@ -188,18 +171,18 @@ test.describe('CandleChart E2E Tests', () => {
     await page.waitForTimeout(3000);
 
     // O componente deve ainda estar visível mesmo com erro na API
-    const chartContainer = page.locator('div[class*="h-[400px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
     await expect(chartContainer).toBeVisible();
   });
 
   test('deve ter acessibilidade adequada', async ({ page }) => {
     await showChart(page);
-    
+
     // Verificar se o componente tem estrutura adequada para acessibilidade
-    const chartContainer = page.locator('div[class*="h-[400px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
     await expect(chartContainer).toBeVisible();
-    
+
     // O gráfico deve ter um container com classe apropriada
-    await expect(chartContainer).toHaveClass(/h-\[400px\]/);
+    await expect(chartContainer).toHaveClass(/min-h-\[500px\]/);
   });
 });

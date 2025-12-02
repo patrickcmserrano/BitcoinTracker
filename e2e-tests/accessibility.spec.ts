@@ -6,14 +6,14 @@ test.describe('Theme Toggle Accessibility Tests', () => {
 
   test.beforeEach(async ({ page }) => {
     // Go to the app's homepage before each test
-    await page.goto('/');
+    await page.goto('./');
     a11y = new AccessibilityHelper(page);
   });
 
   test('should have accessible heading structure', async ({ page }) => {
     // Check if the page has a valid heading structure
     await a11y.expectValidHeadingStructure();
-    
+
     // Check if main heading is accessible
     const mainHeading = page.getByRole('heading', { level: 1 });
     await a11y.expectElementToBeAccessible(mainHeading);
@@ -24,10 +24,10 @@ test.describe('Theme Toggle Accessibility Tests', () => {
     const themeToggleButton = page.getByRole('button', { name: 'Alternar tema claro/escuro' });
     const isVisible = await themeToggleButton.isVisible();
     expect(isVisible, 'Theme toggle button should be visible').toBeTruthy();
-    
+
     // Verificar se é possível navegar com teclado até o elemento
     await page.keyboard.press('Tab');
-    
+
     // Verifique se algo recebeu foco
     const hasFocus = await page.evaluate(() => {
       return document.activeElement !== document.body;

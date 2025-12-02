@@ -114,7 +114,7 @@
     <div class="crypto-icon-container">
       <CryptoIcon cryptoId={config.id} size="md" />
     </div>
-    <span class="crypto-name">{config.symbol}</span>
+    <h1 class="crypto-name">{config.symbol}</h1>
   </div>
   
   <!-- Preço e Variação -->

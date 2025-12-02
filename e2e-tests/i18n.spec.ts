@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Internationalization (i18n) Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the home page before each test
-    await page.goto('/');
+    await page.goto('./');
   });
 
   test('should display the language selector', async ({ page }) => {
@@ -11,76 +11,70 @@ test.describe('Internationalization (i18n) Tests', () => {
     const enButton = page.getByRole('button', { name: 'English' });
     const ptButton = page.getByRole('button', { name: 'Português' });
     const esButton = page.getByRole('button', { name: 'Español' });
-    
+
     await expect(enButton).toBeVisible();
     await expect(ptButton).toBeVisible();
     await expect(esButton).toBeVisible();
   });
 
   test('should allow changing the language', async ({ page }) => {
-    // Record the main heading text for later comparison
-    const initialTitle = await page.getByRole('heading', { level: 1 }).textContent();
-    
+    // Record the footer text for later comparison
+    const initialFooter = await page.locator('footer p').textContent();
+
     // Change to Portuguese
     const ptButton = page.getByRole('button', { name: 'Português' });
     await ptButton.click();
-    
-    // Wait for the text to change (may need to adjust this time)
+
+    // Wait for the text to change
     await page.waitForTimeout(500);
-    
+
     // Check if the text has been updated
-    const titleAfterChange = await page.getByRole('heading', { level: 1 }).textContent();
-    expect(titleAfterChange).not.toBe(initialTitle);
-    
+    const footerAfterChange = await page.locator('footer p').textContent();
+    expect(footerAfterChange).not.toBe(initialFooter);
+
     // Change to Spanish
     const esButton = page.getByRole('button', { name: 'Español' });
     await esButton.click();
-    
+
     // Wait for the text to change
     await page.waitForTimeout(500);
-    
+
     // Check if the text has been updated again
-    const titleAfterSecondChange = await page.getByRole('heading', { level: 1 }).textContent();
-    expect(titleAfterSecondChange).not.toBe(initialTitle);
-    expect(titleAfterSecondChange).not.toBe(titleAfterChange);
+    const footerAfterSecondChange = await page.locator('footer p').textContent();
+    expect(footerAfterSecondChange).not.toBe(initialFooter);
+    expect(footerAfterSecondChange).not.toBe(footerAfterChange);
   });
   test('should display texts corresponding to the selected language', async ({ page }) => {
-    // Expected texts in each language (based on i18n.ts file)
-    const expectedTexts = {
+    // Expected texts in each language (based on locale files)
+    const expectedTexts: Record<string, { footer: string }> = {
       en: {
-        title: 'Price Tracker - Bitcoin',
-        subtitle: 'The world\'s first decentralized cryptocurrency'
+        footer: '© 2025 bitcointracker. Built by Patrick Serrano.'
       },
       pt: {
-        title: 'Rastreador de Preço - Bitcoin',
-        subtitle: 'A primeira criptomoeda descentralizada do mundo'
+        footer: '© 2025 bitcointracker. Construído por Patrick Serrano.'
       },
       es: {
-        title: 'Rastreador de Precio - Bitcoin',
-        subtitle: 'La primera criptomoneda descentralizada del mundo'
+        footer: '© 2025 bitcointracker. Construido por Patrick Serrano.'
       }
     };
-    
+
     // Test each language
     const languages = [
       { code: 'en', button: page.getByRole('button', { name: 'English' }) },
       { code: 'pt', button: page.getByRole('button', { name: 'Português' }) },
       { code: 'es', button: page.getByRole('button', { name: 'Español' }) }
     ];
-    
+
     for (const lang of languages) {
       // Change to the language
       await lang.button.click();
-      
+
       // Wait for the text to change
       await page.waitForTimeout(500);
-        // Check the title
-      const title = await page.getByRole('heading', { level: 1 }).textContent();
-      expect(title).toBe(expectedTexts[lang.code].title);
-      
-      // Check the subtitle (Bitcoin description)
-      const subtitle = page.getByText(expectedTexts[lang.code].subtitle, { exact: true });
-      await expect(subtitle).toBeVisible();
+      // Check the footer
+      const footer = await page.locator('footer p').textContent();
+      // Use toContain because there might be extra whitespace
+      expect(footer).toContain(expectedTexts[lang.code].footer);
     }
   });
 
@@ -88,21 +82,21 @@ test.describe('Internationalization (i18n) Tests', () => {
     // Change to Portuguese
     const ptButton = page.getByRole('button', { name: 'Português' });
     await ptButton.click();
-    
+
     // Wait for the text to change
     await page.waitForTimeout(500);
-    
-    // Record the heading text in Portuguese
-    const titleInPortuguese = await page.getByRole('heading', { level: 1 }).textContent();
-    
+
+    // Record the footer text in Portuguese
+    const footerInPortuguese = await page.locator('footer p').textContent();
+
     // Reload the page
     await page.reload();
-    
+
     // Wait for the page to fully load after reload
-    await page.waitForLoadState('networkidle');
-    
+    await page.waitForLoadState('domcontentloaded');
+
     // Check if the text is still in Portuguese after reload
-    const titleAfterReload = await page.getByRole('heading', { level: 1 }).textContent();
-    expect(titleAfterReload).toBe(titleInPortuguese);
+    const footerAfterReload = await page.locator('footer p').textContent();
+    expect(footerAfterReload).toBe(footerInPortuguese);
   });
 });
