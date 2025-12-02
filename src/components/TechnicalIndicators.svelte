@@ -1,80 +1,41 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { getBinanceKlines } from '../lib/api';
+  import { onMount } from "svelte";
+  import { technicalAnalysisService } from "../lib/services/technicalAnalysisService";
   import {
-    calculateTechnicalIndicators,
     interpretRSI,
     interpretStochastic,
     interpretMACD,
     interpretATR,
     formatIndicatorValue,
     type TechnicalAnalysis,
-    type OHLCVData
-  } from '../lib/technical-indicators';
+  } from "../lib/technical-indicators";
 
-  export let symbol: string = 'BTCUSDT';
-  export let interval: string = '1h';
+  export let symbol: string = "BTCUSDT";
+  export let interval: string = "1h";
 
   let indicators: TechnicalAnalysis | null = null;
   let loading = true;
   let error: string | null = null;
   let lastUpdate: Date | null = null;
-  let currentPrice: number = 0; // Para calcular interpretação do ATR
+  let currentPrice: number = 0;
 
   // Atualizar a cada 5 minutos
   const UPDATE_INTERVAL = 5 * 60 * 1000;
-
-  // Função para mapear timeframe para intervalo válido da Binance
-  function mapTimeframeToInterval(timeframe: string): string {
-    const timeframeMap: { [key: string]: string } = {
-      '5m': '5m',    // 5m nativo da Binance
-      '15m': '15m',  // 15m nativo da Binance
-      '1h': '1h',
-      '4h': '4h',
-      '1d': '1d',
-      '1w': '1w'
-    };
-    
-    return timeframeMap[timeframe] || '1h';
-  }
 
   async function fetchAndCalculateIndicators() {
     try {
       loading = true;
       error = null;
 
-      // Mapear o intervalo para um valor válido da Binance
-      const binanceInterval = mapTimeframeToInterval(interval);
-      
-      console.log(`Buscando dados OHLCV para ${symbol} no intervalo ${interval} (mapeado: ${binanceInterval})`);
-      
-      // Buscar dados OHLCV da Binance (últimas 200 velas para cálculos precisos)
-      const klines = await getBinanceKlines(symbol, binanceInterval, 200);
-
-      if (!klines || klines.length === 0) {
-        throw new Error('Nenhum dado OHLCV disponível');
-      }
-
-      // Converter dados da Binance para formato OHLCVData
-      const ohlcvData: OHLCVData = {
-        open: klines.map(k => parseFloat(k[1])),
-        high: klines.map(k => parseFloat(k[2])),
-        low: klines.map(k => parseFloat(k[3])),
-        close: klines.map(k => parseFloat(k[4])),
-        volume: klines.map(k => parseFloat(k[5]))
-      };
-
-      // Armazenar preço atual para interpretação do ATR
-      currentPrice = ohlcvData.close[ohlcvData.close.length - 1];
-
-      // Calcular indicadores
-      indicators = calculateTechnicalIndicators(ohlcvData);
+      const result = await technicalAnalysisService.analyze(symbol, interval);
+      indicators = result.indicators;
+      currentPrice = result.currentPrice;
       lastUpdate = new Date();
-      
-      console.log('Indicadores técnicos calculados:', indicators);
+
+      console.log("Indicadores técnicos calculados:", indicators);
     } catch (e) {
-      error = e instanceof Error ? e.message : 'Erro ao calcular indicadores';
-      console.error('Erro ao buscar/calcular indicadores:', e);
+      error = e instanceof Error ? e.message : "Erro ao calcular indicadores";
+      console.error("Erro ao buscar/calcular indicadores:", e);
     } finally {
       loading = false;
     }
@@ -83,15 +44,20 @@
   // Variáveis para rastrear mudanças
   let previousSymbol: string | null = null;
   let previousInterval: string | null = null;
-  
+
   // Reativo: detecta mudança de símbolo ou intervalo
-  $: if ((symbol && symbol !== previousSymbol) || (interval && interval !== previousInterval)) {
-    console.log(`📊 TechnicalIndicators: Symbol/Interval changed - Symbol: ${previousSymbol} → ${symbol}, Interval: ${previousInterval} → ${interval}`);
-    
+  $: if (
+    (symbol && symbol !== previousSymbol) ||
+    (interval && interval !== previousInterval)
+  ) {
+    console.log(
+      `📊 TechnicalIndicators: Symbol/Interval changed - Symbol: ${previousSymbol} → ${symbol}, Interval: ${previousInterval} → ${interval}`,
+    );
+
     const shouldReload = previousSymbol !== null || previousInterval !== null;
     previousSymbol = symbol;
     previousInterval = interval;
-    
+
     if (shouldReload) {
       fetchAndCalculateIndicators();
     }
@@ -99,30 +65,33 @@
 
   onMount(() => {
     fetchAndCalculateIndicators();
-    const interval_id = setInterval(fetchAndCalculateIndicators, UPDATE_INTERVAL);
+    const interval_id = setInterval(
+      fetchAndCalculateIndicators,
+      UPDATE_INTERVAL,
+    );
     return () => clearInterval(interval_id);
   });
 
   function getTrendIcon(trend: string): string {
     const icons: Record<string, string> = {
-      bullish: '📈',
-      bearish: '📉',
-      neutral: '↔️'
+      bullish: "📈",
+      bearish: "📉",
+      neutral: "↔️",
     };
-    return icons[trend] || '❓';
+    return icons[trend] || "❓";
   }
 
   function getTrendColor(trend: string): string {
     const colors: Record<string, string> = {
-      bullish: 'text-green-700 dark:text-green-400',
-      bearish: 'text-red-700 dark:text-red-400',
-      neutral: 'text-yellow-700 dark:text-yellow-400'
+      bullish: "text-green-700 dark:text-green-400",
+      bearish: "text-red-700 dark:text-red-400",
+      neutral: "text-yellow-700 dark:text-yellow-400",
     };
-    return colors[trend] || 'text-gray-700';
+    return colors[trend] || "text-gray-700";
   }
 
   function formatTimeSinceUpdate(): string {
-    if (!lastUpdate) return '';
+    if (!lastUpdate) return "";
     const seconds = Math.floor((Date.now() - lastUpdate.getTime()) / 1000);
     if (seconds < 60) return `Há ${seconds}s`;
     const minutes = Math.floor(seconds / 60);
@@ -137,8 +106,8 @@
     {#if lastUpdate}
       <span class="last-update">{formatTimeSinceUpdate()}</span>
     {/if}
-    <button 
-      on:click={fetchAndCalculateIndicators} 
+    <button
+      on:click={fetchAndCalculateIndicators}
       disabled={loading}
       class="refresh-button"
       title="Recalcular indicadores"
@@ -146,10 +115,13 @@
       <span class="refresh-icon" class:spinning={loading}>↻</span>
     </button>
   </div>
-  
+
   <div class="data-source-banner">
     <span class="source-icon">🔗</span>
-    <span class="source-text">Dados: Binance API (gratuita) | Cálculos: Biblioteca local technicalindicators</span>
+    <span class="source-text"
+      >Dados: Binance API (gratuita) | Cálculos: Biblioteca local
+      technicalindicators</span
+    >
   </div>
 
   {#if loading && !indicators}
@@ -160,7 +132,9 @@
   {:else if error}
     <div class="error">
       <p>⚠️ {error}</p>
-      <button on:click={fetchAndCalculateIndicators} class="retry-button">Tentar novamente</button>
+      <button on:click={fetchAndCalculateIndicators} class="retry-button"
+        >Tentar novamente</button
+      >
     </div>
   {:else if indicators}
     <!-- Tendência Geral -->
@@ -170,7 +144,11 @@
         <div class="trend-info">
           <h3 class="trend-title">Tendência Geral</h3>
           <span class="trend-value {getTrendColor(indicators.trend)}">
-            {indicators.trend === 'bullish' ? 'Alta' : indicators.trend === 'bearish' ? 'Baixa' : 'Neutra'}
+            {indicators.trend === "bullish"
+              ? "Alta"
+              : indicators.trend === "bearish"
+                ? "Baixa"
+                : "Neutra"}
           </span>
         </div>
       </div>
@@ -187,7 +165,7 @@
           {formatIndicatorValue(indicators.rsi)}
         </div>
         <div class="progress-bar">
-          <div 
+          <div
             class="progress-fill rsi"
             style="width: {indicators.rsi || 0}%"
           ></div>
@@ -206,14 +184,17 @@
       <div class="indicator-card">
         <div class="indicator-header">
           <h3 class="indicator-title">ATR (14)</h3>
-          <span class="indicator-badge">{interpretATR(indicators.atr, currentPrice)}</span>
+          <span class="indicator-badge"
+            >{interpretATR(indicators.atr, currentPrice)}</span
+          >
         </div>
         <div class="indicator-value">
           {formatIndicatorValue(indicators.atr)}
         </div>
         {#if indicators.atr && currentPrice}
           <div class="atr-percent">
-            {formatIndicatorValue((indicators.atr / currentPrice) * 100, 2)}% do preço
+            {formatIndicatorValue((indicators.atr / currentPrice) * 100, 2)}% do
+            preço
           </div>
           <div class="indicator-hint">
             <span class="hint-text">Volatilidade média do ativo</span>
@@ -233,15 +214,23 @@
           <div class="macd-values">
             <div class="macd-row">
               <span>MACD:</span>
-              <span class="value">{formatIndicatorValue(indicators.macd.MACD, 4)}</span>
+              <span class="value"
+                >{formatIndicatorValue(indicators.macd.MACD, 4)}</span
+              >
             </div>
             <div class="macd-row">
               <span>Signal:</span>
-              <span class="value">{formatIndicatorValue(indicators.macd.signal, 4)}</span>
+              <span class="value"
+                >{formatIndicatorValue(indicators.macd.signal, 4)}</span
+              >
             </div>
             <div class="macd-row">
               <span>Histogram:</span>
-              <span class="value {indicators.macd.histogram >= 0 ? 'positive' : 'negative'}">
+              <span
+                class="value {indicators.macd.histogram >= 0
+                  ? 'positive'
+                  : 'negative'}"
+              >
                 {formatIndicatorValue(indicators.macd.histogram, 4)}
               </span>
             </div>
@@ -255,21 +244,27 @@
       <div class="indicator-card">
         <div class="indicator-header">
           <h3 class="indicator-title">Estocástico (14,3)</h3>
-          <span class="indicator-badge">{interpretStochastic(indicators.stochastic)}</span>
+          <span class="indicator-badge"
+            >{interpretStochastic(indicators.stochastic)}</span
+          >
         </div>
         {#if indicators.stochastic}
           <div class="stoch-values">
             <div class="stoch-row">
               <span>%K:</span>
-              <span class="value">{formatIndicatorValue(indicators.stochastic.k)}</span>
+              <span class="value"
+                >{formatIndicatorValue(indicators.stochastic.k)}</span
+              >
             </div>
             <div class="stoch-row">
               <span>%D:</span>
-              <span class="value">{formatIndicatorValue(indicators.stochastic.d)}</span>
+              <span class="value"
+                >{formatIndicatorValue(indicators.stochastic.d)}</span
+              >
             </div>
           </div>
           <div class="progress-bar">
-            <div 
+            <div
               class="progress-fill stoch-k"
               style="width: {indicators.stochastic.k}%"
             ></div>
@@ -291,19 +286,27 @@
         <div class="ma-values">
           <div class="ma-row">
             <span class="ma-label">SMA 20:</span>
-            <span class="ma-value">${formatIndicatorValue(indicators.sma20)}</span>
+            <span class="ma-value"
+              >${formatIndicatorValue(indicators.sma20)}</span
+            >
           </div>
           <div class="ma-row">
             <span class="ma-label">SMA 50:</span>
-            <span class="ma-value">${formatIndicatorValue(indicators.sma50)}</span>
+            <span class="ma-value"
+              >${formatIndicatorValue(indicators.sma50)}</span
+            >
           </div>
           <div class="ma-row">
             <span class="ma-label">EMA 9:</span>
-            <span class="ma-value">${formatIndicatorValue(indicators.ema9)}</span>
+            <span class="ma-value"
+              >${formatIndicatorValue(indicators.ema9)}</span
+            >
           </div>
           <div class="ma-row">
             <span class="ma-label">EMA 21:</span>
-            <span class="ma-value">${formatIndicatorValue(indicators.ema21)}</span>
+            <span class="ma-value"
+              >${formatIndicatorValue(indicators.ema21)}</span
+            >
           </div>
         </div>
       </div>
@@ -328,7 +331,7 @@
     margin-bottom: 12px;
     flex-wrap: wrap;
   }
-  
+
   .data-source-banner {
     display: flex;
     align-items: center;
@@ -347,11 +350,11 @@
     color: var(--color-surface-300);
     border-color: var(--color-surface-600);
   }
-  
+
   .source-icon {
     font-size: 1rem;
   }
-  
+
   .source-text {
     font-style: italic;
     font-weight: 500;
@@ -438,11 +441,16 @@
   }
 
   @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 
-  .loading, .error {
+  .loading,
+  .error {
     text-align: center;
     padding: 40px;
     color: var(--color-surface-700);
@@ -638,11 +646,15 @@
     color: #818cf8;
   }
 
-  .macd-values, .stoch-values, .ma-values {
+  .macd-values,
+  .stoch-values,
+  .ma-values {
     font-size: 0.875rem;
   }
 
-  .macd-row, .stoch-row, .ma-row {
+  .macd-row,
+  .stoch-row,
+  .ma-row {
     display: flex;
     justify-content: space-between;
     padding: 6px 0;
