@@ -48,7 +48,10 @@ interface Kline {
 /**
  * Busca dados de klines (candlesticks) para um símbolo específico
  */
-const fetchKlines = async (symbol: string, interval: string, limit: number): Promise<any[]> => {
+/**
+ * Busca dados de klines (candlesticks) para um símbolo específico
+ */
+export const getBinanceKlines = async (symbol: string, interval: string, limit: number): Promise<any[]> => {
   const response = await axios.get<any[]>(`${BASE_URL}/api/v3/klines`, {
     params: {
       symbol,
@@ -171,7 +174,7 @@ const processKlineData = (ticker24hr: Ticker24hr, klines10m: Kline[], klines1h: 
  */
 export const getATRData = async (config: CryptoConfig): Promise<{ atr14Daily: number; atrLastUpdated: Date } | null> => {
   const cacheKey = `atr_${config.id}`;
-  
+
   return cacheService.get(
     cacheKey,
     async () => {
@@ -182,7 +185,7 @@ export const getATRData = async (config: CryptoConfig): Promise<{ atr14Daily: nu
         }
 
         const appConfig = getAppConfig();
-        
+
         // Initialize TAAPI service if needed
         let taapiService;
         try {
@@ -219,29 +222,29 @@ export const getATRData = async (config: CryptoConfig): Promise<{ atr14Daily: nu
  * Busca dados completos para uma criptomoeda específica
  */
 export const getCryptoData = async (
-  config: CryptoConfig, 
+  config: CryptoConfig,
   options: { checkATR?: boolean; forceRefresh?: boolean } = {}
 ): Promise<CryptoData> => {
   const { checkATR = true, forceRefresh = false } = options;
   const cacheKey = `crypto_data_${config.id}`;
-  
+
   return cacheService.get(
     cacheKey,
     async () => {
       try {
         console.log(`API: Iniciando busca de dados do ${config.name}...`);
-        
+
         // Obter dados de 24 horas
         const ticker24hrResponse = await axios.get<Ticker24hr>(`${BASE_URL}/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`);
         const ticker24hr = ticker24hrResponse.data;
 
         // Obter dados de candlesticks para diferentes intervalos
         const [klines10mResponse, klines1hResponse, klines4hResponse, klines1dResponse, klines1wResponse] = await Promise.all([
-          fetchKlines(config.binanceSymbol, '1m', 10),
-          fetchKlines(config.binanceSymbol, '1m', 60),
-          fetchKlines(config.binanceSymbol, '1h', 4),
-          fetchKlines(config.binanceSymbol, '1h', 24),
-          fetchKlines(config.binanceSymbol, '1d', 7)
+          getBinanceKlines(config.binanceSymbol, '1m', 10),
+          getBinanceKlines(config.binanceSymbol, '1m', 60),
+          getBinanceKlines(config.binanceSymbol, '1h', 4),
+          getBinanceKlines(config.binanceSymbol, '1h', 24),
+          getBinanceKlines(config.binanceSymbol, '1d', 7)
         ]);
 
         // Mapear os dados dos klines para o formato adequado
@@ -253,7 +256,7 @@ export const getCryptoData = async (
 
         // Processar dados usando a mesma lógica da API original
         const processedData = processKlineData(ticker24hr, klines10m, klines1h, klines4h, klines1d, klines1w);
-        
+
         // Fetch ATR data only if requested (this will be cached and rate-limited)
         const atrData = checkATR ? await getATRData(config) : null;
 
@@ -266,7 +269,7 @@ export const getCryptoData = async (
             atrLastUpdated: atrData.atrLastUpdated
           })
         };
-        
+
         console.log(`API: Dados de ${config.name} obtidos com sucesso - Preço atual:`, result.price);
         return result;
 

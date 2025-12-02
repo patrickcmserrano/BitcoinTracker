@@ -1,4 +1,4 @@
-import { getBinanceKlines } from '../../../lib/api';
+import { getBinanceKlines } from '../../../lib/crypto-api';
 import type { Time, CandlestickData } from 'lightweight-charts';
 
 // Interval → hours per candle
