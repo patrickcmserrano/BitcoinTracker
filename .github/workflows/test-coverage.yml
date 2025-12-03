@@ -16,10 +16,10 @@ jobs:
     container:
       image: mcr.microsoft.com/playwright:v1.52.0-noble
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '20.x'
           cache: 'npm'
@@ -51,10 +51,11 @@ jobs:
           retention-days: 7
       
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           directory: ./coverage/
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
       
       - name: Run E2E Tests
         run: npm run e2e
