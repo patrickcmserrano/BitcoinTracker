@@ -15,6 +15,7 @@
   import { IndicatorService } from "./chart/services/indicatorService";
   import { DataService } from "./chart/services/dataService";
   import type { IndicatorState, DrawingMode } from "./chart/types";
+  import { selectedExchange } from "../lib/config/exchangeConfig";
 
   // Props
   export let symbol = "BTCUSDT";
@@ -67,11 +68,23 @@
     if (chartService) {
       const candleSeries = chartService.getCandleSeries();
       if (candleSeries) {
-        candleSeries.update(candle);
-        chartService.getDrawingService()?.updateLastCandle(candle);
+        // Safety check: ensure we don't update with older data
+        if (
+          lastCandle &&
+          (candle.time as number) < (lastCandle.time as number)
+        ) {
+          return;
+        }
+
+        try {
+          candleSeries.update(candle);
+          chartService.getDrawingService()?.updateLastCandle(candle);
+          lastCandle = candle;
+        } catch (error) {
+          console.error("Error updating chart:", error);
+        }
       }
     }
-    lastCandle = candle;
 
     // Update indicators with new candle data
     updateIndicators();
@@ -98,7 +111,11 @@
     dataService = new DataService(handleNewCandle, handleConnectionStatus);
 
     // Load Data
-    const data = await dataService.loadHistoricalData(symbol, interval);
+    const data = await dataService.loadHistoricalData(
+      symbol,
+      interval,
+      $selectedExchange,
+    );
     if (chartService && chartService.getCandleSeries()) {
       chartService.getCandleSeries()?.setData(data);
       if (data.length > 0) lastCandle = data[data.length - 1];
@@ -133,7 +150,7 @@
     }
 
     // Connect WebSocket
-    dataService.connectWebSocket(symbol, interval);
+    dataService.connectWebSocket(symbol, interval, $selectedExchange);
     isLoading = false;
   }
 
@@ -257,6 +274,14 @@
       chartService.updateDrawingSymbolInterval(symbol, interval);
     }
 
+    cleanup();
+    setTimeout(init, 0);
+  }
+
+  // React to exchange changes
+  let previousExchange = $selectedExchange;
+  $: if ($selectedExchange !== previousExchange) {
+    previousExchange = $selectedExchange;
     cleanup();
     setTimeout(init, 0);
   }

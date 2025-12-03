@@ -11,20 +11,8 @@ async function showChart(page: any) {
 
 test.describe('CandleChart E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Navegar para a página com o componente CandleChart
-    await page.goto('./');
-  });
-
-  test('deve renderizar o gráfico de candles', async ({ page }) => {
-    await showChart(page);
-
-    // Verificar se o container do gráfico está presente
-    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
-    await expect(chartContainer).toBeVisible();
-  });
-
-  test('deve carregar dados históricos', async ({ page }) => {
-    // Interceptar chamadas para a API da Binance
+    // Setup API route interception BEFORE navigation
+    // This ensures the mock is ready when the chart loads data
     await page.route('**/api.binance.com/api/v3/klines**', async route => {
       const mockData = [
         [1625097600000, "50000", "51000", "49000", "50500"],
@@ -38,15 +26,41 @@ test.describe('CandleChart E2E Tests', () => {
       });
     });
 
-    // Verificar se a requisição foi feita
-    const [response] = await Promise.all([
-      page.waitForResponse(response =>
-        response.url().includes('api.binance.com/api/v3/klines') && response.status() === 200
-      ),
-      showChart(page)
-    ]);
+    // Now navigate to the page with the route already set up
+    await page.goto('./');
+  });
 
-    expect(response.ok()).toBeTruthy();
+  test('deve renderizar o gráfico de candles', async ({ page }) => {
+    await showChart(page);
+
+    // Verificar se o container do gráfico está presente
+    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    await expect(chartContainer).toBeVisible();
+  });
+
+  test('deve carregar dados históricos', async ({ page }) => {
+    // Track if the API was called
+    let apiCalled = false;
+
+    // Set up a listener for the specific API call
+    page.on('request', request => {
+      if (request.url().includes('api.binance.com/api/v3/klines')) {
+        apiCalled = true;
+      }
+    });
+
+    // Wait for the chart to load - the beforeEach already set up the route mock
+    await showChart(page);
+
+    // Wait a bit for the async data loading to complete
+    await page.waitForTimeout(2000);
+
+    // Verify the API was called
+    expect(apiCalled).toBeTruthy();
+
+    // Verify the chart container is visible (data loaded successfully)
+    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    await expect(chartContainer).toBeVisible();
   });
 
   test.skip('deve estabelecer conexão WebSocket', async ({ page }) => {
@@ -154,10 +168,17 @@ test.describe('CandleChart E2E Tests', () => {
   });
 
   test('deve lidar com erros de rede graciosamente', async ({ page }) => {
+    // Create a new page context to avoid route conflicts
+    // We need to set up the error route BEFORE navigating
+    await page.unroute('**/api.binance.com/api/v3/klines**');
+
     // Simular erro na API da Binance
     await page.route('**/api.binance.com/api/v3/klines**', async route => {
       await route.abort('failed');
     });
+
+    // Navigate to trigger a fresh load with the error route
+    await page.goto('./');
 
     // Capturar erros do console
     const errors: string[] = [];
