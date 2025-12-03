@@ -43,7 +43,8 @@ export default defineConfig({
           firefoxUserPrefs: {
             'media.navigator.streams.fake': true,
             'security.tls.insecure_fallback_hosts': 'localhost'
-          }
+          },
+          env: process.env.CI ? { HOME: '/root' } : undefined
         }
       },
     },
