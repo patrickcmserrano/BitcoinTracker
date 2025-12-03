@@ -1,4 +1,5 @@
-import { getBinanceKlines } from '../../../lib/crypto-api';
+import { ExchangeProviderFactory } from '../../../lib/exchanges/ExchangeProviderFactory';
+import type { ExchangeName } from '../../../lib/exchanges/types';
 import type { Time, CandlestickData } from 'lightweight-charts';
 
 // Interval → hours per candle
@@ -41,24 +42,29 @@ export class DataService {
     private connectionAttempts = 0;
     private maxReconnectAttempts = 5;
     private isConnecting = false;
+    private isDisposed = false;
 
     constructor(
         private onNewCandle: (candle: CandlestickData) => void,
         private onConnectionStatusChange: (status: boolean) => void
     ) { }
 
-    public async loadHistoricalData(symbol: string, interval: string): Promise<CandlestickData[]> {
+    public async loadHistoricalData(symbol: string, interval: string, exchange: ExchangeName = 'binance'): Promise<CandlestickData[]> {
+        if (this.isDisposed) return [];
         try {
+            const provider = ExchangeProviderFactory.getProvider(exchange);
             const limit = getCandleLimit(interval);
-            const klines = await getBinanceKlines(symbol, interval, limit);
+            const klines = await provider.getKlines(symbol, interval, limit);
+
+            if (this.isDisposed) return [];
             if (!klines || klines.length === 0) return [];
 
-            const data = klines.map((k: any[]) => ({
-                time: Math.floor(k[0] / 1000) as Time,
-                open: parseFloat(k[1]),
-                high: parseFloat(k[2]),
-                low: parseFloat(k[3]),
-                close: parseFloat(k[4]),
+            const data = klines.map(k => ({
+                time: k.time,
+                open: k.open,
+                high: k.high,
+                low: k.low,
+                close: k.close,
             }));
 
             if (data.length > 0) {
@@ -74,35 +80,60 @@ export class DataService {
         }
     }
 
-    public async getRawKlines(symbol: string, interval: string): Promise<any[]> {
+    public async getRawKlines(symbol: string, interval: string, exchange: ExchangeName = 'binance'): Promise<any[]> {
+        if (this.isDisposed) return [];
+        const provider = ExchangeProviderFactory.getProvider(exchange);
         const limit = getCandleLimit(interval);
-        return await getBinanceKlines(symbol, interval, limit);
+        return await provider.getKlines(symbol, interval, limit);
     }
 
-    public connectWebSocket(symbol: string, interval: string) {
+    public connectWebSocket(symbol: string, interval: string, exchange: ExchangeName = 'binance') {
+        if (this.isDisposed) return;
         if (this.isConnecting) return;
         this.isConnecting = true;
-        this.disconnectWebSocket();
+        this.cleanupConnection();
 
-        const wsUrl = `wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${interval}`;
-        console.log(`Connecting to WebSocket: ${wsUrl}`);
+        const provider = ExchangeProviderFactory.getProvider(exchange);
+        const wsUrl = provider.getWebSocketUrl(symbol, interval);
+        console.log(`Connecting to WebSocket (${exchange}): ${wsUrl}`);
 
         try {
             this.ws = new WebSocket(wsUrl);
 
             this.ws.onopen = () => {
+                if (this.isDisposed) {
+                    this.ws?.close();
+                    return;
+                }
                 console.log(`WebSocket connected for ${symbol} ${interval}`);
+
+                // Send subscription message if required (e.g. Bitget)
+                const subMsg = provider.getSubscriptionMessage?.(symbol, interval);
+                if (subMsg && this.ws) {
+                    console.log('Sending subscription:', subMsg);
+                    this.ws.send(JSON.stringify(subMsg));
+                }
+
                 this.connectionAttempts = 0;
                 this.isConnecting = false;
                 this.onConnectionStatusChange(true);
             };
 
             this.ws.onmessage = (event: MessageEvent) => {
+                if (this.isDisposed) return;
                 const data = JSON.parse(event.data);
-                this.handleKlineData(data);
+                const parsed = provider.parseWebSocketMessage(data);
+                if (parsed) {
+                    this.handleKlineData(parsed.kline);
+                } else if (exchange === 'bitget' && data.action === 'snapshot') {
+                    // Handle initial snapshot if needed, or just rely on updates
+                    // Bitget sends snapshot first, then updates. 
+                    // Our parser handles both if structure matches.
+                }
             };
 
             this.ws.onclose = (event) => {
+                if (this.isDisposed) return;
                 console.log(`WebSocket disconnected (code: ${event.code})`);
                 this.isConnecting = false;
                 this.onConnectionStatusChange(false);
@@ -111,12 +142,13 @@ export class DataService {
                     this.connectionAttempts++;
                     const delay = Math.min(2000 * Math.pow(2, this.connectionAttempts - 1), 32000);
                     this.reconnectTimeout = window.setTimeout(() => {
-                        this.connectWebSocket(symbol, interval);
+                        this.connectWebSocket(symbol, interval, exchange);
                     }, delay);
                 }
             };
 
             this.ws.onerror = (error) => {
+                if (this.isDisposed) return;
                 console.error('WebSocket error:', error);
                 this.isConnecting = false;
             };
@@ -126,22 +158,27 @@ export class DataService {
         }
     }
 
-    private handleKlineData(data: any) {
-        const kline = data.k;
+    private handleKlineData(kline: any) {
+        if (this.isDisposed) return;
         if (!kline) return;
 
         const candleData: CandlestickData = {
-            time: Math.floor(kline.t / 1000) as Time,
-            open: parseFloat(kline.o),
-            high: parseFloat(kline.h),
-            low: parseFloat(kline.l),
-            close: parseFloat(kline.c),
+            time: kline.time,
+            open: kline.open,
+            high: kline.high,
+            low: kline.low,
+            close: kline.close,
         };
 
         this.onNewCandle(candleData);
     }
 
     public disconnectWebSocket() {
+        this.isDisposed = true; // Mark as disposed to prevent any further updates
+        this.cleanupConnection();
+    }
+
+    private cleanupConnection() {
         if (this.reconnectTimeout !== null) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;

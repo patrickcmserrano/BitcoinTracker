@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { onDestroy } from 'svelte';
 import type { CryptoConfig, CryptoData } from '../crypto-config';
 import { loadCryptoData, updateCryptoData, appState } from '../crypto-store';
+import { selectedExchange } from '../config/exchangeConfig';
 
 const UPDATE_INTERVAL = 15000;
 const ATR_CHECK_INTERVAL = 300000;
@@ -50,14 +51,15 @@ export function useTrackerData(initialConfig: CryptoConfig) {
 
     async function fetchData(isInitialLoad = false, forceATRUpdate = false) {
         const currentConfig = get(config);
+        const currentExchange = get(selectedExchange);
 
         const shouldCheckATR = forceATRUpdate || shouldUpdateATR();
 
         try {
             if (isInitialLoad) {
-                await loadCryptoData(currentConfig, { checkATR: shouldCheckATR, forceRefresh: false });
+                await loadCryptoData(currentConfig, { checkATR: shouldCheckATR, forceRefresh: false, exchange: currentExchange });
             } else {
-                await updateCryptoData(currentConfig, { checkATR: shouldCheckATR });
+                await updateCryptoData(currentConfig, { checkATR: shouldCheckATR, exchange: currentExchange });
             }
         } catch (err) {
             console.error(`Error fetching data for ${currentConfig.name}:`, err);
@@ -77,6 +79,17 @@ export function useTrackerData(initialConfig: CryptoConfig) {
     function startAutoUpdate() {
         stopAutoUpdate();
         intervalId = setInterval(() => fetchData(false, false), UPDATE_INTERVAL);
+
+        // Subscribe to exchange changes to reload data
+        const unsubscribeExchange = selectedExchange.subscribe(() => {
+            fetchData(true, false);
+        });
+
+        // Store unsubscribe function to call it on stop/cleanup
+        // But wait, startAutoUpdate might be called multiple times.
+        // Better to handle exchange subscription outside or manage it carefully.
+        // Actually, fetchData gets the current exchange value, so if the interval runs, it uses the new exchange.
+        // But we want immediate update on change.
     }
 
     function stopAutoUpdate() {
@@ -94,8 +107,21 @@ export function useTrackerData(initialConfig: CryptoConfig) {
         startAutoUpdate(); // Restart interval
     }
 
+    // React to exchange changes
+    const unsubscribeExchange = selectedExchange.subscribe(newExchange => {
+        // Trigger update when exchange changes
+        // We use a timeout to avoid conflict with initial load if it happens simultaneously
+        setTimeout(() => {
+            const currentConfig = get(config);
+            if (currentConfig) {
+                fetchData(true, false);
+            }
+        }, 0);
+    });
+
     function cleanup() {
         stopAutoUpdate();
+        unsubscribeExchange();
     }
 
     return {

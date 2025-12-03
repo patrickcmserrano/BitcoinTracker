@@ -1,9 +1,9 @@
 import { MACD, Stochastic, EMA } from 'technicalindicators';
 import { cacheService } from '../../../lib/cache-service';
-import axios from 'axios';
+import { ExchangeProviderFactory } from '../../../lib/exchanges/ExchangeProviderFactory';
+import type { ExchangeName } from '../../../lib/exchanges/types';
 import type { TripleScreenState, MACDResult, StochasticResult, Trend, Setup, OperationDirection } from '../types';
 
-const BASE_URL = 'https://api.binance.com';
 
 export class TripleScreenService {
     private static instance: TripleScreenService;
@@ -17,37 +17,32 @@ export class TripleScreenService {
         return TripleScreenService.instance;
     }
 
-    private async getBinanceKlines(symbol: string, interval: string, limit: number): Promise<any[]> {
-        const cacheKey = `klines_${symbol}_${interval}_${limit}`;
+    private async getKlines(symbol: string, interval: string, limit: number, exchange: ExchangeName = 'binance'): Promise<any[]> {
+        const cacheKey = `klines_${exchange}_${symbol}_${interval}_${limit}`;
 
         return cacheService.get(
             cacheKey,
             async () => {
-                console.log(`🎯 Buscando ${limit} klines de ${symbol} no intervalo ${interval}`);
-                const response = await axios.get(`${BASE_URL}/api/v3/klines`, {
-                    params: {
-                        symbol,
-                        interval,
-                        limit: Math.min(limit, 1000)
-                    }
-                });
-                console.log(`✅ ${response.data.length} klines obtidos com sucesso`);
-                return response.data;
+                console.log(`🎯 Buscando ${limit} klines de ${symbol} no intervalo ${interval} via ${exchange}`);
+                const provider = ExchangeProviderFactory.getProvider(exchange);
+                const klines = await provider.getKlines(symbol, interval, limit);
+                console.log(`✅ ${klines.length} klines obtidos com sucesso`);
+                return klines;
             },
             {
                 ttl: interval.includes('m') ? 30000 : 60000,
-                apiType: 'binance'
+                apiType: exchange
             }
         );
     }
 
-    public async analyze(symbol: string): Promise<Partial<TripleScreenState>> {
-        console.log('🎯 Triple Screen: Iniciando análise para', symbol);
+    public async analyze(symbol: string, exchange: ExchangeName = 'binance'): Promise<Partial<TripleScreenState>> {
+        console.log(`🎯 Triple Screen: Iniciando análise para ${symbol} via ${exchange}`);
 
         const [weeklyAnalysis, dailyAnalysis, hourlyAnalysis] = await Promise.all([
-            this.analyzeWeekly(symbol),
-            this.analyzeDaily(symbol),
-            this.analyzeHourly(symbol)
+            this.analyzeWeekly(symbol, exchange),
+            this.analyzeDaily(symbol, exchange),
+            this.analyzeHourly(symbol, exchange)
         ]);
 
         // Combine results to determine operation direction and setup
@@ -76,10 +71,10 @@ export class TripleScreenService {
         };
     }
 
-    private async analyzeWeekly(symbol: string) {
+    private async analyzeWeekly(symbol: string, exchange: ExchangeName) {
         console.log('🌊 Buscando dados semanais...');
-        const data = await this.getBinanceKlines(symbol, '1w', 100);
-        const closes = data.map(k => parseFloat(k[4]));
+        const data = await this.getKlines(symbol, '1w', 100, exchange);
+        const closes = data.map((k: any) => k.close);
         const currentPrice = closes[closes.length - 1];
 
         // MACD
@@ -100,7 +95,11 @@ export class TripleScreenService {
         let trend: Trend = 'LATERAL';
         const priceAboveEMA = currentPrice > ema17;
 
-        if (latestMACD && ema17) {
+        if (latestMACD && ema17 &&
+            latestMACD.histogram !== undefined &&
+            latestMACD.MACD !== undefined &&
+            latestMACD.signal !== undefined) {
+
             const macdBullish = latestMACD.histogram > 0 && latestMACD.MACD > latestMACD.signal;
             const macdBearish = latestMACD.histogram < 0 && latestMACD.MACD < latestMACD.signal;
 
@@ -113,7 +112,7 @@ export class TripleScreenService {
 
         return {
             trend,
-            macd: latestMACD ? {
+            macd: (latestMACD && latestMACD.histogram !== undefined && latestMACD.MACD !== undefined && latestMACD.signal !== undefined) ? {
                 histogram: latestMACD.histogram,
                 MACD: latestMACD.MACD,
                 signal: latestMACD.signal
@@ -123,13 +122,13 @@ export class TripleScreenService {
         };
     }
 
-    private async analyzeDaily(symbol: string) {
+    private async analyzeDaily(symbol: string, exchange: ExchangeName) {
         console.log('🌀 Buscando dados diários...');
-        const data = await this.getBinanceKlines(symbol, '1d', 100);
+        const data = await this.getKlines(symbol, '1d', 100, exchange);
 
-        const highs = data.map(k => parseFloat(k[2]));
-        const lows = data.map(k => parseFloat(k[3]));
-        const closes = data.map(k => parseFloat(k[4]));
+        const highs = data.map((k: any) => k.high);
+        const lows = data.map((k: any) => k.low);
+        const closes = data.map((k: any) => k.close);
         const currentPrice = closes[closes.length - 1];
 
         // Stochastic
@@ -157,9 +156,9 @@ export class TripleScreenService {
         };
     }
 
-    private async analyzeHourly(symbol: string) {
-        const data = await this.getBinanceKlines(symbol, '1h', 100);
-        const closes = data.map(k => parseFloat(k[4]));
+    private async analyzeHourly(symbol: string, exchange: ExchangeName) {
+        const data = await this.getKlines(symbol, '1h', 100, exchange);
+        const closes = data.map((k: any) => k.close);
         const lastPrice = closes[closes.length - 1];
 
         const ema17Result = EMA.calculate({ period: 17, values: closes });
