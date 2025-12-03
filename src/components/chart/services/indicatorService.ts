@@ -17,33 +17,48 @@ export class IndicatorService {
         showMACD: boolean,
         showRSI: boolean
     ) {
-        if (!klines || klines.length === 0) return;
+        if (!klines || klines.length === 0) {
+            return;
+        }
+
+        console.log('🔍 Raw klines sample:', {
+            first: klines[0],
+            isArray: Array.isArray(klines[0])
+        });
 
         const ohlcvData = {
-            open: klines.map(k => parseFloat(k[1])),
-            high: klines.map(k => parseFloat(k[2])),
-            low: klines.map(k => parseFloat(k[3])),
-            close: klines.map(k => parseFloat(k[4])),
-            volume: klines.map(k => parseFloat(k[5]))
+            open: klines.map(k => typeof k === 'object' && 'open' in k ? Number(k.open) : parseFloat(k[1])),
+            high: klines.map(k => typeof k === 'object' && 'high' in k ? Number(k.high) : parseFloat(k[2])),
+            low: klines.map(k => typeof k === 'object' && 'low' in k ? Number(k.low) : parseFloat(k[3])),
+            close: klines.map(k => typeof k === 'object' && 'close' in k ? Number(k.close) : parseFloat(k[4])),
+            volume: klines.map(k => typeof k === 'object' && 'volume' in k ? Number(k.volume) : parseFloat(k[5]))
         };
 
         const indicators = calculateIndicatorSeries(ohlcvData);
-        const times = klines.map(k => Math.floor(k[0] / 1000) as Time);
+        const times = klines.map(k => {
+            const time = typeof k === 'object' && 'time' in k ? k.time : k[0];
+            return (typeof time === 'number' ? time : Math.floor(Number(time) / 1000)) as Time;
+        });
 
-        if (showSMA) this.updateSMA(times, indicators);
-        else this.removeSMA();
+        if (showSMA) {
+            this.updateSMA(times, indicators);
+        } else this.removeSMA();
 
-        if (showEMA) this.updateEMA(times, indicators);
-        else this.removeEMA();
+        if (showEMA) {
+            this.updateEMA(times, indicators);
+        } else this.removeEMA();
 
-        if (showBollinger) this.updateBollinger(times, indicators);
-        else this.removeBollinger();
+        if (showBollinger) {
+            this.updateBollinger(times, indicators);
+        } else this.removeBollinger();
 
-        if (showMACD) this.updateMACD(times, indicators);
-        else this.removeMACD();
+        if (showMACD) {
+            this.updateMACD(times, indicators);
+        } else this.removeMACD();
 
-        if (showRSI) await this.updateRSI(times, ohlcvData.close);
-        else this.removeRSI();
+        if (showRSI) {
+            this.updateRSI(times, indicators);
+        } else this.removeRSI();
 
         // Adjust margins if indicators are present
         this.adjustMargins(showMACD, showRSI);
@@ -141,23 +156,29 @@ export class IndicatorService {
         if (this.series.macdHistogramSeries) { this.chart.removeSeries(this.series.macdHistogramSeries); this.series.macdHistogramSeries = null; }
     }
 
-    private async updateRSI(times: Time[], closes: number[]) {
+    private updateRSI(times: Time[], indicators: any) {
         if (!this.series.rsiSeries) {
-            this.series.rsiSeries = this.chart.addSeries(LineSeries, { color: '#9C27B0', lineWidth: 2, priceScaleId: 'rsi', priceFormat: { type: 'price', precision: 2, minMove: 0.01 } });
+            this.series.rsiSeries = this.chart.addSeries(LineSeries, {
+                color: '#9C27B0',
+                lineWidth: 2,
+                priceScaleId: 'rsi',
+                priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+                title: 'RSI (14)'
+            });
             this.chart.priceScale('rsi').applyOptions({
                 scaleMargins: { top: 0.75, bottom: 0 },
             });
         }
 
-        const { RSI } = await import('technicalindicators');
-        const rsiValues = RSI.calculate({ values: closes, period: 14 });
-        const rsiData = this.mapData(times, rsiValues);
-
+        const rsiData = this.mapData(times, indicators.rsi);
         this.series.rsiSeries?.setData(rsiData);
     }
 
     private removeRSI() {
-        if (this.series.rsiSeries) { this.chart.removeSeries(this.series.rsiSeries); this.series.rsiSeries = null; }
+        if (this.series.rsiSeries) {
+            this.chart.removeSeries(this.series.rsiSeries);
+            this.series.rsiSeries = null;
+        }
     }
 
     private mapData(times: Time[], values: number[]): LineData[] {

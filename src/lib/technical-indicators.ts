@@ -285,10 +285,10 @@ export function interpretMACD(macd: { MACD: number; signal: number; histogram: n
  */
 export function interpretATR(atr: number | null, currentPrice: number): string {
   if (atr === null) return 'N/A';
-  
+
   // Calcular ATR como porcentagem do preço
   const atrPercent = (atr / currentPrice) * 100;
-  
+
   if (atrPercent < 1) return 'Baixa Volatilidade';
   if (atrPercent < 2) return 'Volatilidade Normal';
   if (atrPercent < 3) return 'Alta Volatilidade';
@@ -317,6 +317,7 @@ export interface IndicatorSeries {
   macdLine: number[];
   macdSignal: number[];
   macdHistogram: number[];
+  rsi: number[];
 }
 
 /**
@@ -327,17 +328,33 @@ export interface IndicatorSeries {
 export function calculateIndicatorSeries(data: OHLCVData): IndicatorSeries {
   const { close } = data;
 
+  // Filter out invalid values (NaN, null, undefined)
+  const validIndices: number[] = [];
+  const cleanClose: number[] = [];
+
+  close.forEach((value, index) => {
+    if (value !== null && value !== undefined && !isNaN(value) && isFinite(value)) {
+      validIndices.push(index);
+      cleanClose.push(value);
+    }
+  });
+
+
+
+  // Use cleaned data for calculations
+  const closeValues = cleanClose;
+
   // SMA
-  const sma20 = SMA.calculate({ values: close, period: 20 });
-  const sma50 = SMA.calculate({ values: close, period: 50 });
+  const sma20 = SMA.calculate({ values: closeValues, period: 20 });
+  const sma50 = SMA.calculate({ values: closeValues, period: 50 });
 
   // EMA
-  const ema9 = EMA.calculate({ values: close, period: 9 });
-  const ema21 = EMA.calculate({ values: close, period: 21 });
+  const ema9 = EMA.calculate({ values: closeValues, period: 9 });
+  const ema21 = EMA.calculate({ values: closeValues, period: 21 });
 
   // Bollinger Bands
   const bollingerBands = BollingerBands.calculate({
-    values: close,
+    values: closeValues,
     period: 20,
     stdDev: 2
   });
@@ -348,7 +365,7 @@ export function calculateIndicatorSeries(data: OHLCVData): IndicatorSeries {
 
   // MACD
   const macdValues = MACD.calculate({
-    values: close,
+    values: closeValues,
     fastPeriod: 12,
     slowPeriod: 26,
     signalPeriod: 9,
@@ -360,6 +377,12 @@ export function calculateIndicatorSeries(data: OHLCVData): IndicatorSeries {
   const macdSignal = macdValues.map(m => m.signal || 0);
   const macdHistogram = macdValues.map(m => m.histogram || 0);
 
+  // RSI
+  const rsiValues = RSI.calculate({
+    values: closeValues,
+    period: 14
+  });
+
   return {
     sma20,
     sma50,
@@ -370,6 +393,7 @@ export function calculateIndicatorSeries(data: OHLCVData): IndicatorSeries {
     bollingerLower,
     macdLine,
     macdSignal,
-    macdHistogram
+    macdHistogram,
+    rsi: rsiValues
   };
 }
