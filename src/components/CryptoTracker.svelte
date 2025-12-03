@@ -5,6 +5,8 @@
   import { _ } from "../lib/i18n";
   import CandleChart from "./CandleChart.svelte";
   import CryptoIcon from "./CryptoIcon.svelte";
+  import ExchangeSelector from "./ExchangeSelector.svelte";
+  import PriceSpreadMonitor from "./PriceSpreadMonitor.svelte";
   import { selectNextCrypto, selectPreviousCrypto } from "../lib/crypto-store";
   import { setupSwipeGestures, isTouchDevice } from "../lib/swipe-gestures";
   import { useTrackerData } from "../lib/composables/useTrackerData";
@@ -321,6 +323,11 @@
 <div class="w-full h-full mx-auto px-2 py-1" bind:this={swipeContainer}>
   <!-- Layout responsivo: empilhado verticalmente em todas as telas -->
   <div class="flex flex-col gap-3">
+    <!-- Header Controls -->
+    <div class="flex justify-between items-start px-1">
+      <ExchangeSelector />
+    </div>
+
     <!-- Seção do Gráfico de Candles -->
     {#if showChart}
       <div class="w-full flex-shrink-0 flex flex-col">
@@ -339,5 +346,9 @@
         </div>
       </div>
     {/if}
+
+    <div class="w-full px-1 pb-2">
+      <PriceSpreadMonitor symbol={config.binanceSymbol} />
+    </div>
   </div>
 </div>
