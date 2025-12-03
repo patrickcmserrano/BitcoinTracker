@@ -3,32 +3,11 @@ import { getTaapiService, initializeTaapiService } from './taapi-service';
 import { getAppConfig, isTaapiConfigured } from './config';
 import type { CryptoConfig, CryptoData } from './crypto-config';
 import { cacheService } from './cache-service';
+import { ExchangeProviderFactory } from './exchanges/ExchangeProviderFactory';
+import type { ExchangeName, TickerData } from './exchanges/types';
 
-const BASE_URL = 'https://api.binance.com';
-
-interface Ticker24hr {
-  symbol: string;
-  priceChange: string;
-  priceChangePercent: string;
-  weightedAvgPrice: string;
-  prevClosePrice: string;
-  lastPrice: string;
-  lastQty: string;
-  bidPrice: string;
-  bidQty: string;
-  askPrice: string;
-  askQty: string;
-  openPrice: string;
-  highPrice: string;
-  lowPrice: string;
-  volume: string;
-  quoteVolume: string;
-  openTime: number;
-  closeTime: number;
-  firstId: number;
-  lastId: number;
-  count: number;
-}
+// Re-export TickerData as Ticker24hr for compatibility
+export type Ticker24hr = TickerData;
 
 interface Kline {
   openTime: number;
@@ -51,15 +30,41 @@ interface Kline {
 /**
  * Busca dados de klines (candlesticks) para um símbolo específico
  */
+/**
+ * Busca dados de klines (candlesticks) para um símbolo específico
+ */
+export const getKlinesFromExchange = async (symbol: string, interval: string, limit: number, exchange: ExchangeName = 'binance'): Promise<any[]> => {
+  const provider = ExchangeProviderFactory.getProvider(exchange);
+  const klines = await provider.getKlines(symbol, interval, limit);
+
+  // Convert back to array format for compatibility if needed, or update consumers
+  // Current consumers expect array of arrays or objects?
+  // getBinanceKlines returned raw array from Binance API: [time, open, high, low, close, vol, ...]
+  // Our provider returns NormalizedKlineData objects.
+  // We should probably map it back to raw array format for compatibility with existing `processKlineData` logic
+  // which expects `kline[4]` etc.
+
+  return klines.map(k => [
+    (k.time as number) * 1000, // timestamp ms
+    k.open.toString(),
+    k.high.toString(),
+    k.low.toString(),
+    k.close.toString(),
+    k.volume?.toString() || '0',
+    0, // close time
+    0, // quote asset vol
+    0, // trades
+    0, // taker buy base
+    0, // taker buy quote
+    0  // ignore
+  ]);
+};
+
+/**
+ * Legacy support
+ */
 export const getBinanceKlines = async (symbol: string, interval: string, limit: number): Promise<any[]> => {
-  const response = await axios.get<any[]>(`${BASE_URL}/api/v3/klines`, {
-    params: {
-      symbol,
-      interval,
-      limit
-    }
-  });
-  return response.data;
+  return getKlinesFromExchange(symbol, interval, limit, 'binance');
 };
 
 /**
@@ -85,9 +90,9 @@ const mapKlines = (data: any[]): Kline[] => data.map(kline => ({
  */
 const processKlineData = (ticker24hr: Ticker24hr, klines10m: Kline[], klines1h: Kline[], klines4h: Kline[], klines1d: Kline[], klines1w: Kline[]) => {
   // Extrair dados relevantes
-  const price = parseFloat(ticker24hr.lastPrice);
-  const volume24h = parseFloat(ticker24hr.quoteVolume);
-  const percentChange = parseFloat(ticker24hr.priceChangePercent);
+  const price = ticker24hr.lastPrice;
+  const volume24h = ticker24hr.quoteVolume;
+  const percentChange = ticker24hr.priceChangePercent;
   const volumePerHour = volume24h / 24;
 
   // Função auxiliar para calcular máximos, mínimos e amplitude
@@ -223,28 +228,29 @@ export const getATRData = async (config: CryptoConfig): Promise<{ atr14Daily: nu
  */
 export const getCryptoData = async (
   config: CryptoConfig,
-  options: { checkATR?: boolean; forceRefresh?: boolean } = {}
+  options: { checkATR?: boolean; forceRefresh?: boolean; exchange?: ExchangeName } = {}
 ): Promise<CryptoData> => {
-  const { checkATR = true, forceRefresh = false } = options;
-  const cacheKey = `crypto_data_${config.id}`;
+  const { checkATR = true, forceRefresh = false, exchange = 'binance' } = options;
+  const cacheKey = `crypto_data_${exchange}_${config.id}`;
 
   return cacheService.get(
     cacheKey,
     async () => {
       try {
-        console.log(`API: Iniciando busca de dados do ${config.name}...`);
+        console.log(`API: Iniciando busca de dados do ${config.name} via ${exchange}...`);
+
+        const provider = ExchangeProviderFactory.getProvider(exchange);
 
         // Obter dados de 24 horas
-        const ticker24hrResponse = await axios.get<Ticker24hr>(`${BASE_URL}/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`);
-        const ticker24hr = ticker24hrResponse.data;
+        const ticker24hr = await provider.get24hTicker(config.binanceSymbol); // Assuming config.binanceSymbol is generic enough (BTCUSDT)
 
         // Obter dados de candlesticks para diferentes intervalos
         const [klines10mResponse, klines1hResponse, klines4hResponse, klines1dResponse, klines1wResponse] = await Promise.all([
-          getBinanceKlines(config.binanceSymbol, '1m', 10),
-          getBinanceKlines(config.binanceSymbol, '1m', 60),
-          getBinanceKlines(config.binanceSymbol, '1h', 4),
-          getBinanceKlines(config.binanceSymbol, '1h', 24),
-          getBinanceKlines(config.binanceSymbol, '1d', 7)
+          getKlinesFromExchange(config.binanceSymbol, '1m', 10, exchange),
+          getKlinesFromExchange(config.binanceSymbol, '1m', 60, exchange),
+          getKlinesFromExchange(config.binanceSymbol, '1h', 4, exchange),
+          getKlinesFromExchange(config.binanceSymbol, '1h', 24, exchange),
+          getKlinesFromExchange(config.binanceSymbol, '1d', 7, exchange)
         ]);
 
         // Mapear os dados dos klines para o formato adequado
@@ -287,7 +293,7 @@ export const getCryptoData = async (
     },
     {
       ttl: 15000, // 15 segundos para dados de cripto
-      apiType: 'binance',
+      apiType: exchange,
       forceRefresh
     }
   );

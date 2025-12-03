@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { CryptoConfig, CryptoData } from './crypto-config';
+import type { ExchangeName } from './exchanges/types';
 import { getDefaultCrypto, getAllCryptos } from './crypto-config';
 import { getCryptoData } from './crypto-api';
 
@@ -32,19 +33,19 @@ export const appState = writable(initialState);
 
 // Stores derivados para acesso fácil
 export const selectedCrypto = derived(appState, $state => $state.selectedCrypto);
-export const currentCryptoData = derived(appState, $state => 
+export const currentCryptoData = derived(appState, $state =>
   $state.cryptoData[$state.selectedCrypto.id] || null
 );
-export const isCurrentCryptoLoading = derived(appState, $state => 
+export const isCurrentCryptoLoading = derived(appState, $state =>
   $state.loading[$state.selectedCrypto.id] || false
 );
-export const isCurrentCryptoUpdating = derived(appState, $state => 
+export const isCurrentCryptoUpdating = derived(appState, $state =>
   $state.updating[$state.selectedCrypto.id] || false
 );
-export const currentCryptoError = derived(appState, $state => 
+export const currentCryptoError = derived(appState, $state =>
   $state.errors[$state.selectedCrypto.id] || null
 );
-export const currentATRError = derived(appState, $state => 
+export const currentATRError = derived(appState, $state =>
   $state.atrErrors[$state.selectedCrypto.id] || null
 );
 
@@ -149,21 +150,21 @@ export const getCryptoLoadingById = (cryptoId: string) => {
  * Carrega dados para uma criptomoeda específica
  */
 export const loadCryptoData = async (
-  crypto: CryptoConfig, 
-  options: { checkATR?: boolean; forceRefresh?: boolean } = {}
+  crypto: CryptoConfig,
+  options: { checkATR?: boolean; forceRefresh?: boolean; exchange?: ExchangeName } = {}
 ): Promise<void> => {
-  const { checkATR = true, forceRefresh = false } = options;
-  
+  const { checkATR = true, forceRefresh = false, exchange = 'binance' } = options;
+
   try {
     console.log(`📥 Loading data for ${crypto.name}...`);
     setCryptoLoading(crypto.id, true);
     setCryptoError(crypto.id, null);
-    
-    const data = await getCryptoData(crypto, { checkATR, forceRefresh });
-    
+
+    const data = await getCryptoData(crypto, { checkATR, forceRefresh, exchange });
+
     setCryptoData(crypto.id, data);
     console.log(`✅ Data loaded for ${crypto.name}`);
-    
+
   } catch (error) {
     console.error(`❌ Error loading data for ${crypto.name}:`, error);
     setCryptoError(crypto.id, error instanceof Error ? error.message : 'Unknown error');
@@ -187,19 +188,19 @@ export const loadCurrentCryptoData = async (
  */
 export const updateCryptoData = async (
   crypto: CryptoConfig,
-  options: { checkATR?: boolean } = {}
+  options: { checkATR?: boolean; exchange?: ExchangeName } = {}
 ): Promise<void> => {
-  const { checkATR = false } = options;
-  
+  const { checkATR = false, exchange = 'binance' } = options;
+
   try {
     console.log(`🔄 Updating data for ${crypto.name}...`);
     setCryptoUpdating(crypto.id, true);
-    
-    const data = await getCryptoData(crypto, { checkATR, forceRefresh: false });
-    
+
+    const data = await getCryptoData(crypto, { checkATR, forceRefresh: false, exchange });
+
     setCryptoData(crypto.id, data);
     console.log(`✅ Data updated for ${crypto.name}`);
-    
+
   } catch (error) {
     console.error(`❌ Error updating data for ${crypto.name}:`, error);
     setCryptoError(crypto.id, error instanceof Error ? error.message : 'Unknown error');
