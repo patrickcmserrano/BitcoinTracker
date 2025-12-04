@@ -5,7 +5,6 @@
   import { _ } from "../lib/i18n";
   import CandleChart from "./CandleChart.svelte";
   import CryptoIcon from "./CryptoIcon.svelte";
-  import ExchangeSelector from "./ExchangeSelector.svelte";
   import PriceSpreadMonitor from "./PriceSpreadMonitor.svelte";
   import { selectNextCrypto, selectPreviousCrypto } from "../lib/crypto-store";
   import { setupSwipeGestures, isTouchDevice } from "../lib/swipe-gestures";
@@ -325,14 +324,14 @@
   <div class="flex flex-col gap-3">
     <!-- Header Controls -->
     <div class="flex justify-between items-start px-1">
-      <ExchangeSelector />
+      <!-- ExchangeSelector moved to CandleChart -->
     </div>
 
     <!-- Seção do Gráfico de Candles -->
     {#if showChart}
       <div class="w-full flex-shrink-0 flex flex-col">
         <div
-          class="card p-3 shadow-lg variant-filled-surface w-full flex flex-col min-h-[500px]"
+          class="card p-3 shadow-lg variant-filled-surface w-full flex flex-col min-h-[600px]"
         >
           <!-- Container do gráfico -->
           <div class="w-full flex-1">

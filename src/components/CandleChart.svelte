@@ -11,6 +11,7 @@
   import ChartControls from "./chart/ChartControls.svelte";
   import LoadingOverlay from "./chart/LoadingOverlay.svelte";
   import DrawingToolbar from "./chart/DrawingToolbar.svelte";
+  import ExchangeSelector from "./ExchangeSelector.svelte";
   import { ChartService } from "./chart/services/chartService";
   import { IndicatorService } from "./chart/services/indicatorService";
   import { DataService } from "./chart/services/dataService";
@@ -318,7 +319,10 @@
 
 <div class="w-full">
   <div class="flex justify-between items-center mb-2 flex-wrap gap-2">
-    <ChartHeader {symbol} {interval} />
+    <div class="flex items-center gap-2">
+      <ChartHeader {symbol} {interval} />
+      <ExchangeSelector />
+    </div>
 
     <ChartControls
       {indicators}
@@ -337,7 +341,7 @@
       onClearAll={handleClearAllDrawings}
     />
 
-    <div class="relative w-full h-[600px]">
+    <div class="relative w-full h-[720px]">
       <div bind:this={chartContainer} class="w-full h-full rounded"></div>
       <LoadingOverlay {isLoading} />
     </div>

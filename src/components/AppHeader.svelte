@@ -1,40 +1,42 @@
 <script lang="ts">
-  import type { CryptoConfig, CryptoData } from '../lib/crypto-config';
-  import PriceDisplay from './AppHeader/PriceDisplay.svelte';
-  import TimeframeSelector from './AppHeader/TimeframeSelector.svelte';
-  import NavigationTabs from './AppHeader/NavigationTabs.svelte';
-  import SettingsBar from './AppHeader/SettingsBar.svelte';
-  
+  import type { CryptoConfig, CryptoData } from "../lib/crypto-config";
+  import PriceDisplay from "./AppHeader/PriceDisplay.svelte";
+  import TimeframeSelector from "./AppHeader/TimeframeSelector.svelte";
+  import NavigationTabs from "./AppHeader/NavigationTabs.svelte";
+  import SettingsBar from "./AppHeader/SettingsBar.svelte";
+
   // Props
   export let selectedCrypto: CryptoConfig;
   export let cryptoData: CryptoData | null = null;
-  export let activeTimeframe: string = '1h';
-  export let currentView: 'dashboard' | 'triplescreen' = 'dashboard';
+  export let activeTimeframe: string = "1h";
+  export let currentView: "dashboard" | "triplescreen" = "dashboard";
   export let isFullHD: boolean = false;
   export let loading: boolean = false;
   export let onTimeframeChange: (timeframe: string) => void = () => {};
-  export let onViewChange: (view: 'dashboard' | 'triplescreen') => void = () => {};
+  export let onViewChange: (
+    view: "dashboard" | "triplescreen",
+  ) => void = () => {};
 
   // Estado para animação de atualização
   let updating = false;
-  
+
   // Debug: Log quando os dados chegam no AppHeader
-  $: console.log('🎯 AppHeader - Dados recebidos:', { 
+  $: console.log("🎯 AppHeader - Dados recebidos:", {
     crypto: selectedCrypto.symbol,
-    hasData: !!cryptoData, 
+    hasData: !!cryptoData,
     price: cryptoData?.price,
-    loading 
+    loading,
   });
-  
+
   // Reativo: detecta mudanças nos dados para animação
   $: if (cryptoData) {
     updating = true;
-    setTimeout(() => updating = false, 300);
+    setTimeout(() => (updating = false), 300);
   }
 </script>
 
-<header 
-  class="app-header" 
+<header
+  class="app-header"
   style="--crypto-color: {selectedCrypto.color}"
   class:fullhd={isFullHD}
 >
@@ -47,23 +49,20 @@
   <!-- Barra única horizontal: Preço + Navegação + Timeframes + Settings -->
   <div class="header-row">
     <div class="left-section">
-      <PriceDisplay 
-        config={selectedCrypto} 
-        data={cryptoData} 
+      <PriceDisplay
+        config={selectedCrypto}
+        data={cryptoData}
         {activeTimeframe}
         {loading}
       />
     </div>
 
     <div class="center-section">
-      <NavigationTabs 
-        {currentView}
-        {onViewChange}
-      />
+      <NavigationTabs {currentView} {onViewChange} />
     </div>
 
     <div class="right-section">
-      <TimeframeSelector 
+      <TimeframeSelector
         {activeTimeframe}
         disabled={loading}
         {onTimeframeChange}
@@ -71,16 +70,22 @@
       <div class="settings-wrapper">
         <SettingsBar />
       </div>
-      <a 
-        href="https://github.com/patrickcmserrano/BitcoinTracker" 
-        target="_blank" 
+      <a
+        href="https://github.com/patrickcmserrano/BitcoinTracker"
+        target="_blank"
         rel="noopener noreferrer"
         class="github-link"
         aria-label="View on GitHub"
         title="View on GitHub"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+        >
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+          />
         </svg>
       </a>
     </div>
@@ -106,11 +111,9 @@
   }
 
   .app-header {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
+    z-index: 999;
     background-color: var(--app-background);
     backdrop-filter: blur(10px);
     border-bottom: 3px solid var(--crypto-color);
@@ -125,7 +128,7 @@
 
   /* Ajuste para Full HD */
   .app-header.fullhd {
-    left: 120px; /* Espaço para a barra lateral de criptos */
+    margin-left: 90px;
   }
 
   /* Barra de progresso de atualização */
@@ -143,17 +146,22 @@
   .progress-animation {
     height: 100%;
     width: 30%;
-    background: linear-gradient(90deg, 
-      transparent, 
-      var(--crypto-color), 
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--crypto-color),
       transparent
     );
     animation: progress-slide 1s ease-in-out infinite;
   }
 
   @keyframes progress-slide {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(400%); }
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(400%);
+    }
   }
 
   /* Layout da barra horizontal única */
@@ -194,59 +202,81 @@
     align-items: center;
   }
 
-  /* Responsividade para Tablets */
-  @media (max-width: 1024px) {
+  /* Responsividade para Tablets - sem wrap até 1300px */
+  @media (max-width: 1300px) {
     .app-header {
       padding: 0.625rem 0.75rem;
     }
 
     .header-row {
-      gap: 1rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      min-height: auto;
+    }
+
+    .left-section {
+      flex: 0 1 auto;
+      order: 0;
+      min-width: 0;
     }
 
     .center-section {
-      max-width: 400px;
+      flex: 1 1 auto;
+      order: 1;
+      max-width: 100%;
+      min-width: 0;
     }
 
     .right-section {
-      gap: 0.75rem;
+      flex: 0 1 auto;
+      order: 2;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      min-width: 0;
     }
   }
 
   /* Responsividade para Mobile */
   @media (max-width: 768px) {
     .app-header {
-      padding: 0.5rem;
+      padding: 0.5rem 0.5rem;
+      min-height: auto;
     }
 
     .header-row {
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 0.5rem;
+      min-height: auto;
     }
 
     .left-section {
-      flex: 1 1 100%;
+      flex: 0 1 auto;
       order: 0;
+      min-width: 0;
     }
 
     .center-section {
-      flex: 1 1 100%;
-      order: 2;
+      flex: 1 1 auto;
+      order: 1;
       max-width: 100%;
+      min-width: 0;
     }
 
     .right-section {
-      flex: 1 1 100%;
-      order: 1;
-      justify-content: space-between;
+      flex: 0 1 auto;
+      order: 2;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      min-width: 0;
     }
 
     .settings-wrapper {
-      margin-left: auto;
+      margin-left: 0;
     }
   }
 
-  @media (max-width: 480px) {
+  /* Largura mínima suportada: 400px */
+  @media (max-width: 400px) {
     .app-header {
       padding: 0.375rem 0.5rem;
     }
