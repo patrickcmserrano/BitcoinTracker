@@ -186,7 +186,7 @@ export class ChartService {
             }
 
             const to = logicalRange.to;
-            const from = Math.max(0, to - numCandles);
+            const from = to - numCandles;
 
             timeScale.setVisibleLogicalRange({ from, to });
         } catch (error) {
