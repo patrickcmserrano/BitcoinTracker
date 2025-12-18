@@ -5,8 +5,8 @@ async function showChart(page: any) {
   await page.waitForLoadState('domcontentloaded');
 
   // Chart is always visible in CryptoTracker, so we just wait for the container
-  // The container has min-h-[500px] in CryptoTracker
-  await page.waitForSelector('div[class*="min-h-[500px]"]', { timeout: 15000 });
+  // The container has min-h-[600px] in CryptoTracker
+  await page.waitForSelector('div[class*="min-h-[600px]"]', { timeout: 15000 });
 }
 
 test.describe('CandleChart E2E Tests', () => {
@@ -34,7 +34,7 @@ test.describe('CandleChart E2E Tests', () => {
     await showChart(page);
 
     // Verificar se o container do gráfico está presente
-    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[600px]"]');
     await expect(chartContainer).toBeVisible();
   });
 
@@ -49,6 +49,9 @@ test.describe('CandleChart E2E Tests', () => {
       }
     });
 
+    // Reload to ensure the request is captured by our listener
+    await page.reload();
+
     // Wait for the chart to load - the beforeEach already set up the route mock
     await showChart(page);
 
@@ -59,7 +62,7 @@ test.describe('CandleChart E2E Tests', () => {
     expect(apiCalled).toBeTruthy();
 
     // Verify the chart container is visible (data loaded successfully)
-    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[600px]"]');
     await expect(chartContainer).toBeVisible();
   });
 
@@ -85,7 +88,7 @@ test.describe('CandleChart E2E Tests', () => {
   test('deve ser responsivo em diferentes tamanhos de tela', async ({ page }) => {
     await showChart(page);
 
-    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[600px]"]');
 
     // Testar em desktop
     await page.setViewportSize({ width: 1200, height: 800 });
@@ -192,7 +195,7 @@ test.describe('CandleChart E2E Tests', () => {
     await page.waitForTimeout(3000);
 
     // O componente deve ainda estar visível mesmo com erro na API
-    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[600px]"]');
     await expect(chartContainer).toBeVisible();
   });
 
@@ -200,10 +203,10 @@ test.describe('CandleChart E2E Tests', () => {
     await showChart(page);
 
     // Verificar se o componente tem estrutura adequada para acessibilidade
-    const chartContainer = page.locator('div[class*="min-h-[500px]"]');
+    const chartContainer = page.locator('div[class*="min-h-[600px]"]');
     await expect(chartContainer).toBeVisible();
 
     // O gráfico deve ter um container com classe apropriada
-    await expect(chartContainer).toHaveClass(/min-h-\[500px\]/);
+    await expect(chartContainer).toHaveClass(/min-h-\[600px\]/);
   });
 });
