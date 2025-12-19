@@ -15,19 +15,9 @@ test.describe('Core User Flow', () => {
         // Assuming desktop for now based on previous tests.
 
         // Click on Ethereum
-        // We need to find the button for Ethereum. 
-        // Based on CryptoSelector.svelte, it renders buttons with crypto icons and names.
-        // We can target by text "ETH".
-        const ethButton = page.locator('button').filter({ hasText: 'ETH' }).first();
-
-        // If not visible (mobile), might need to open menu. 
-        // But let's assume it's visible or we are in desktop mode.
-        if (await ethButton.isVisible()) {
-            await ethButton.click();
-        } else {
-            // Handle mobile case if needed, but for now let's rely on desktop view
-            console.log('Ethereum button not visible, skipping click');
-        }
+        // Use data-testid which is available in both grid and sidebar layouts
+        const ethButton = page.getByTestId('crypto-btn-ethereum');
+        await ethButton.click();
 
         // Wait for update
         await page.waitForTimeout(1000);

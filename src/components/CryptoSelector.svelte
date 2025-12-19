@@ -47,6 +47,7 @@
           style="--crypto-color: {crypto.color}"
           on:click={() => handleSelect(crypto)}
           title={$_(`crypto.${crypto.id}.description`)}
+          data-testid="crypto-btn-{crypto.id}"
         >
           <div class="crypto-icon">
             <CryptoIcon cryptoId={crypto.id} size="md" />
@@ -67,6 +68,7 @@
             style="--crypto-color: {crypto.color}"
             on:click={() => handleSelect(crypto)}
             title={$_(`crypto.${crypto.id}.description`)}
+            data-testid="crypto-btn-{crypto.id}"
           >
             <div class="crypto-icon-vertical">
               <CryptoIcon cryptoId={crypto.id} size="lg" />
