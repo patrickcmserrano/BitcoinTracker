@@ -132,7 +132,12 @@
           .setVisibleLogicalRange(chartDataState.logicalRange);
       }
     } else {
-      chartService?.setVisibleCandles(80);
+      // Adjust default zoom for longer timeframes to avoid "spaced out" look
+      let defaultVisible = 80;
+      if (interval === "1d") defaultVisible = 150;
+      else if (interval === "1w") defaultVisible = 100;
+
+      chartService?.setVisibleCandles(defaultVisible);
     }
 
     // Update Indicators
