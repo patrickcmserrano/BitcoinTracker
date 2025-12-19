@@ -21,7 +21,26 @@ export class IndicatorService {
             return;
         }
 
-        console.log('🔍 Raw klines sample:', {
+        // Production Debugging for Klines Data
+        if (klines && klines.length > 0) {
+            const sample = klines[0];
+            // Check if it's the expected object format or array
+            const isObject = typeof sample === 'object' && sample !== null && !Array.isArray(sample);
+            const hasClose = isObject && 'close' in sample;
+            const closeValue = hasClose ? sample.close : (Array.isArray(sample) ? sample[4] : 'N/A');
+
+            // Log if format seems unexpected or values are weird
+            if (!hasClose && !Array.isArray(sample)) {
+                console.warn('⚠️ [Indicator Service] Unexpected kline format:', {
+                    sample,
+                    type: typeof sample,
+                    isArray: Array.isArray(sample),
+                    keys: isObject ? Object.keys(sample) : []
+                });
+            }
+        }
+
+        console.log('🔍 Raw klines sample (Safe):', {
             first: klines[0],
             isArray: Array.isArray(klines[0])
         });

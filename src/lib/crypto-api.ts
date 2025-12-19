@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { getTaapiService, initializeTaapiService } from './taapi-service';
 import { getAppConfig, isTaapiConfigured } from './config';
-import type { CryptoConfig, CryptoData } from './crypto-config';
+import { type CryptoConfig, type CryptoData, CRYPTO_CONFIGS } from './crypto-config';
 import { cacheService } from './cache-service';
 import { ExchangeProviderFactory } from './exchanges/ExchangeProviderFactory';
 import type { ExchangeName, TickerData } from './exchanges/types';
@@ -301,6 +301,5 @@ export const getCryptoData = async (
 
 // Exportar função legacy para manter compatibilidade
 export const getBitcoinData = async (options: { checkATR?: boolean } = {}): Promise<any> => {
-  const { CRYPTO_CONFIGS } = await import('./crypto-config');
   return getCryptoData(CRYPTO_CONFIGS.bitcoin, options);
 };

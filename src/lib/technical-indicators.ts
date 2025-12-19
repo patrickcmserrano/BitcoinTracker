@@ -333,6 +333,19 @@ export function calculateIndicatorSeries(data: OHLCVData): IndicatorSeries {
   const cleanClose: number[] = [];
 
   close.forEach((value, index) => {
+    // Production Debugging for Data Quality
+    if (value === null || value === undefined || isNaN(value) || !isFinite(value)) {
+      // Log only once per batch to avoid flooding
+      if (cleanClose.length === 0) {
+        console.warn('⚠️ [Indicator Logic] Invalid value detected in close data:', {
+          index,
+          value,
+          type: typeof value,
+          totalDataLength: close.length
+        });
+      }
+    }
+
     if (value !== null && value !== undefined && !isNaN(value) && isFinite(value)) {
       validIndices.push(index);
       cleanClose.push(value);
